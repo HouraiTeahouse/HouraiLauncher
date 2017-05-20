@@ -3,7 +3,7 @@ python:
   - "3.5"
 env:
   global:
-    - PYTHONPATH="/home/travis/build/HouraiTeahouse/houraiteahouse.net-backend/src"
+    - PYTHONPATH="/home/travis/build/HouraiTeahouse/HouraiLauncher/src"
 install:
   # install dependencies
   - pip install -r requirements.txt
@@ -15,17 +15,10 @@ script:
   # PEP8 Style Checks
   - pep8 --show-source src/ test/
   # Run tests and collect coverage information
-  - coverage run --source=src/houraiteahouse -m unittest discover -v -s test
+  - coverage run --source=src/ -m unittest discover -v -s test
 cache: pip
 after_success:
   coveralls
-notifications:
-  webhooks:
-    urls:
-      - https://discordapp.com/api/webhooks/242910675729383424/rmTqNg0mxXbEBcjJiUbOrTX3Ar58azGUryaL0vjApUtQuAWXSpuerogDr9fflmeO5UEw
-    on_success: change
-    on_failure: always
-    on_start: never
 deploy:
   provider: script
   script: curl -i -X POST https://houraiteahouse.net:$PORT/deploy/houraiteahouse.net-backend/$TRAVIS_BRANCH?token=$TOKEN
