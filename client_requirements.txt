@@ -1,0 +1,7 @@
+appdirs==1.4.3
+packaging==16.8
+PyInstaller==3.2.1
+pyparsing==2.2.0
+PyQt5==5.8.2
+sip==4.19.2
+six==1.10.0
