@@ -1,6 +1,12 @@
 {
   "project": "Fantasy Crescendo",
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}",
+  "game_binary": {
+    "Windows": "fc.exe",
+    "Linux": "fc.x86_64"
+  },
+  "launch_flags":{
+  },
   "branches" : {
     "master": "Stable",
     "develop": "Development"
