@@ -1,3 +1,3 @@
 pyinstaller ./launcher.spec \
   --name launcher \
-  --onedir
+  --onefile
