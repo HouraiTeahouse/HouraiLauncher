@@ -1,0 +1,8 @@
+{
+  "project": "Fantasy Crescendo",
+  "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}",
+  "branches" : {
+    "master": "Stable",
+    "develop": "Development"
+  }
+}
