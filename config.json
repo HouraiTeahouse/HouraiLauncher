@@ -1,5 +1,6 @@
 {
   "project": "Fantasy Crescendo",
+  "logo": "img/logo.png",
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}",
   "game_binary": {
     "Windows": "fc.exe",
