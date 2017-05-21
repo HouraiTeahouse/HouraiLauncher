@@ -21,7 +21,7 @@ suggest installing under "C:\Games" or something similar.
 Configuration of the launcher is done via the config.json file. Below is
 documentation
 
-```json
+```javascript
 {
   // The name of the project. This will be used to title the launcher window.
   "project": "Fantasy Crescendo",
@@ -59,7 +59,7 @@ documentation
 ## Update Payloads
 This patcher expects a JSON payload from the specified `index_endpoint` in the
 following format:
-```json
+```javascript
 {
   // The last time the game was updated
   "last_updated": 1495329322
