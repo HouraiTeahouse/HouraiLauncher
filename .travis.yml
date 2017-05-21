@@ -3,7 +3,7 @@ python:
   - "3.5"
 os:
   - linux
-  - osx
+  #- osx
 env:
   global:
     - PYTHONPATH="/home/travis/build/HouraiTeahouse/HouraiLauncher/src"
