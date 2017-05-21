@@ -34,6 +34,9 @@ documentation
   //              below
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}",
 
+  // The logo image for the game
+  "logo": "img/logo.png",
+
   // The platform dependent name of the game binary to launch after checking for
   // updates
   "game_binary": {

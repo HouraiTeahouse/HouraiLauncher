@@ -19,6 +19,7 @@ if getattr(sys, '_MEIPASS', False):
     RESOURCE_DIR = os.path.abspath(sys._MEIPASS)
 else:
     RESOURCE_DIR = os.getcwd()
+print(RESOURCE_DIR)
 
 # Load Config
 with open(os.path.join(RESOURCE_DIR, CONFIG_FILE)) as config_file:
