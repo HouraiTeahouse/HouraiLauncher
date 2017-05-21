@@ -32,7 +32,7 @@ class MainWindow(QWidget):
         args = [os.path.join(BASE_DIR, self.config.game_binary[system])]
         if system in self.config.launch_flags:
             args += self.config.launch_flags[system]
-        print ("Command:", ' '.join(args))
+        print("Command:", ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
 
