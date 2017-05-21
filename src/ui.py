@@ -25,7 +25,7 @@ class MainWindow(QWidget):
         self.launch_game_btn = QPushButton('Checking for updates...')
         self.launch_game_btn.setEnabled(False)
         self.branch_box = QComboBox()
-        self.branch_lookup = {name : branch for branch, name in
+        self.branch_lookup = {name: branch for branch, name in
                               self.config.branches.items()}
         for name in self.config.branches.values():
             self.branch_box.addItem(name)
@@ -50,7 +50,6 @@ class MainWindow(QWidget):
 
         self.launch_game_btn.clicked.connect(self.launch_game)
 
-
     def launch_game(self):
         print('Launching game...')
         self.launch_game_btn.setEnabled(False)
@@ -61,4 +60,3 @@ class MainWindow(QWidget):
         print("Command:", ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
-
