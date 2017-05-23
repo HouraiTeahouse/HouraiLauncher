@@ -41,6 +41,7 @@ def sha256_hash(filepath, block_size=65536):
             buf = hash_file.read(block_size)
     return hash.hexdigest()
 
+
 class Branch(object):
 
     def __init__(self, name, source_branch, config):
@@ -50,7 +51,6 @@ class Branch(object):
         self.is_indexed = False
         self.last_fetched = None
         self.config = config
-        print(self.directory)
         self.files = {}
         self.remote_index = {}
 
@@ -77,14 +77,13 @@ class Branch(object):
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
         url = inject_variables(self.config.index_endpoint, branch_context)
-        print(url)
+        print('Remote index URL:', url)
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 self.remote_index = await response.json()
         file_downloads = {}
         branch_context['base_url'] = self.remote_index['base_url']
         url_format = self.remote_index['url_format']
-        # print('FILES', self.source_branch, self.files)
         download_bytes = 0
         for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
@@ -143,7 +142,6 @@ class MainWindow(QWidget):
         self.branch_lookup = {v:k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
-        print(self.branch)
         self.context = {
             'platform': platform.system()
         }
@@ -158,7 +156,6 @@ class MainWindow(QWidget):
     async def main_loop(self):
         with QThreadExecutor(1) as exec:
             while True:
-                print(self.client_state)
                 if self.client_state in self.state_mapping:
                     await self.state_mapping[self.client_state]()
                 else:
@@ -204,13 +201,19 @@ class MainWindow(QWidget):
 
         self.launch_game_btn = QPushButton('Checking for updates...')
         self.launch_game_btn.setEnabled(False)
+
         self.branch_box = QComboBox()
         self.branch_box.activated[str].connect(self.on_branch_change)
         self.branch_box.addItems(self.config.branches.values())
+        if len(self.config.branches) <= 1:
+            self.branch_box.hide()
+
         self.progress_bar = QProgressBar()
         self.progress_bar.setMaximum(0)
         self.progress_bar.setMaximum(1000)
         self.progress_bar.hide()
+
+        self.launch_game_btn.clicked.connect(self.launch_game)
 
         logo = QPixmap(os.path.join(RESOURCE_DIR, self.config.logo))
         logo = logo.scaledToWidth(WIDTH)
@@ -228,13 +231,9 @@ class MainWindow(QWidget):
 
         self.setLayout(default_layout)
 
-        self.launch_game_btn.clicked.connect(self.launch_game)
-
-
     def on_branch_change(self, selection):
         self.branch = self.branch_lookup[selection]
         print(self.branch)
-
 
     def launch_game(self):
         print('Launching game...')
@@ -245,5 +244,4 @@ class MainWindow(QWidget):
             args = self.config.launch_flags[system]
         else:
             args = []
-        print("Command:", ' '.join(args))
         self.branches[self.branch].launch_game(binary, args);
