@@ -5,6 +5,7 @@ from util import namedtuple_from_mapping
 from collections import OrderedDict
 
 CONFIG_FILE = 'config.json'
+LAUNCHER_DATA_DIR = 'Launcher'
 
 # Get the base directory the executable is found in
 # When running from a python interpretter, it will use the current working
@@ -15,11 +16,14 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.getcwd()
 
+LAUNCHER_DIR = os.path.join(BASE_DIR, LAUNCHER_DATA_DIR)
+if not os.path.exists(LAUNCHER_DIR):
+    os.makedirs(LAUNCHER_DIR)
+
 if getattr(sys, '_MEIPASS', False):
     RESOURCE_DIR = os.path.abspath(sys._MEIPASS)
 else:
     RESOURCE_DIR = os.getcwd()
-print(RESOURCE_DIR)
 
 # Load Config
 with open(os.path.join(RESOURCE_DIR, CONFIG_FILE)) as config_file:
