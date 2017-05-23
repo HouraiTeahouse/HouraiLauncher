@@ -1,4 +1,5 @@
-import asyncio, sys
+import asyncio
+import sys
 from quamash import QEventLoop
 from PyQt5.QtWidgets import QApplication
 
