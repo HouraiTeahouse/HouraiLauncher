@@ -1,11 +1,13 @@
-import sys
 from config import CONFIG
 from ui import MainWindow
-from PyQt5.QtWidgets import QApplication
+from common import loop
 
+main_window = MainWindow(CONFIG)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    main_window = MainWindow(CONFIG)
     main_window.show()
-    sys.exit(app.exec_())
+    try:
+        loop.run_until_complete(main_window.main_loop())
+    finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
