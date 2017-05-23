@@ -1,4 +1,11 @@
-import os, platform, hashlib, sys, subprocess, re, asyncio, time
+import os
+import platform
+import hashlib
+import sys
+import subprocess
+import re
+import asyncio
+import time
 import aiohttp
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
@@ -14,8 +21,9 @@ HEIGHT = 480
 
 vars_regex = re.compile('{(.*?)}')
 
+
 def sanitize_url(url):
-    return  url.lower().replace(' ', '-')
+    return url.lower().replace(' ', '-')
 
 
 def inject_variables(path_format, vars_obj):
@@ -99,10 +107,11 @@ class Branch(object):
             elif self.files[filename] != filehash:
                 file_downloads[filename] = url
                 download_bytes += filesize
-                print('Hash mismatch:', filename, filehash, self.files[filename])
+                print('Hash mismatch:', filename,
+                      filehash, self.files[filename])
         print('Total download size:', download_bytes)
         await asyncio.gather(*[self.download_file(filename, url)
-            for filename, url in file_downloads.items()])
+                               for filename, url in file_downloads.items()])
 
     async def download_file(self, filename, url):
         path = os.path.join(self.directory, filename)
@@ -112,6 +121,7 @@ class Branch(object):
                 async with session.get(url) as response:
                     async for block in response.content.iter_chunked(1024):
                         downloaded_file.write(block)
+
 
 class ClientState(Enum):
     # Game is ready to play and launch
@@ -137,9 +147,10 @@ class MainWindow(QWidget):
         self.config = config
         branches = self.config.branches
         self.branches = {
-            name: Branch(name, branch, config) for branch, name in branches.items()
+            name: Branch(name, branch, config)
+            for branch, name in branches.items()
         }
-        self.branch_lookup = {v:k for k, v in self.config.branches.items()}
+        self.branch_lookup = {v: k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
         self.context = {
@@ -169,7 +180,7 @@ class MainWindow(QWidget):
         await asyncio.sleep(0.1)
 
     async def launcher_update_check(self):
-        #TODO(james7132): Properly set this up
+        # TODO(james7132): Properly set this up
         self.client_state = ClientState.GAME_STATUS_CHECK
 
     async def game_status_check(self):
@@ -192,7 +203,7 @@ class MainWindow(QWidget):
             'platform': platform.system()
         }
         await asyncio.gather(*[branch.fetch_remote_index(context)
-            for branch in self.branches.values()])
+                               for branch in self.branches.values()])
         self.client_state = ClientState.READY
 
     def init_ui(self):
@@ -244,4 +255,4 @@ class MainWindow(QWidget):
             args = self.config.launch_flags[system]
         else:
             args = []
-        self.branches[self.branch].launch_game(binary, args);
+        self.branches[self.branch].launch_game(binary, args)
