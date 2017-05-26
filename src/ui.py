@@ -76,7 +76,10 @@ class Branch(object):
         self.is_indexed = True
 
     def launch_game(self, game_binary, command_args):
-        args = [os.path.join(self.directory, game_binary)] + command_args
+        binary_path = os.path.join(self.directory, game_binary)
+        print(os.stat(binary_path))
+        os.chmod(binary_path, 750)
+        args = [binary_path] + command_args
         print("Command:", ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
@@ -115,10 +118,14 @@ class Branch(object):
 
     async def download_file(self, filename, url):
         path = os.path.join(self.directory, filename)
+        directory = os.path.dirname(path)
         print('Downloading', path, 'from', url, '...')
-        with open(path, 'wb') as downloaded_file:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(path, 'wb+') as downloaded_file:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
+                    print(response.status)
                     async for block in response.content.iter_chunked(1024):
                         downloaded_file.write(block)
 
