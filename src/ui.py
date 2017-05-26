@@ -6,6 +6,7 @@ import subprocess
 import re
 import asyncio
 import time
+import shutil
 import aiohttp
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
@@ -78,7 +79,7 @@ class Branch(object):
     def launch_game(self, game_binary, command_args):
         binary_path = os.path.join(self.directory, game_binary)
         print(os.stat(binary_path))
-        os.chmod(binary_path, 750)
+        os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
         print("Command:", ' '.join(args))
         subprocess.Popen(args)
@@ -122,6 +123,8 @@ class Branch(object):
         print('Downloading', path, 'from', url, '...')
         if not os.path.exists(directory):
             os.makedirs(directory)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
         with open(path, 'wb+') as downloaded_file:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
