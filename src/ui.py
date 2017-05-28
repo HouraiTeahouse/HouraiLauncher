@@ -51,6 +51,53 @@ def sha256_hash(filepath, block_size=65536):
     return hash.hexdigest()
 
 
+class Download(object):
+
+    def __init__(self, path, url, download_size):
+        self.url = url
+        self.file_path = path
+        self.total_size = download_size
+        self.downloaded_bytes = 0
+
+    async def download_file(self, tracker=None):
+        path = self.file_path
+        directory = os.path.dirname(path)
+        print('Downloading', path, 'from', self.url, '...')
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        with open(path, 'wb+') as downloaded_file:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.url) as response:
+                    print(response.status)
+                    async for block in response.content.iter_chunked(1024):
+                        self.downloaded_bytes += len(block)
+                        if tracker is not None:
+                            loop.call_soon_threadsafe(tracker.update)
+                        downloaded_file.write(block)
+
+
+class DownloadTracker(object):
+
+    def __init__(self, progress_bar):
+        self.downloads = []
+        self.progress_bar = progress_bar
+
+    def update(self):
+        if self.progress_bar is None:
+            return
+        total_download_size = sum(download.total_size for download in
+                                  self.downloads)
+        total_downloaded_bytes = sum(download.downloaded_bytes for download in
+                                    self.downloads)
+        if total_download_size <= 0:
+            return
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(total_download_size)
+        self.progress_bar.setValue(total_downloaded_bytes)
+
+
 class Branch(object):
 
     def __init__(self, name, source_branch, config):
@@ -68,7 +115,6 @@ class Branch(object):
             self.is_indexed = True
             return
         replacement = self.directory + os.path.sep
-        tasks = []
         for directory, _, files in os.walk(self.directory):
             for file in files:
                 full_path = os.path.join(directory, file)
@@ -78,14 +124,13 @@ class Branch(object):
 
     def launch_game(self, game_binary, command_args):
         binary_path = os.path.join(self.directory, game_binary)
-        print(os.stat(binary_path))
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
         print("Command:", ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
 
-    async def fetch_remote_index(self, context):
+    async def fetch_remote_index(self, context, progress_bar):
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
         url = inject_variables(self.config.index_endpoint, branch_context)
@@ -97,6 +142,7 @@ class Branch(object):
         branch_context['base_url'] = self.remote_index['base_url']
         url_format = self.remote_index['url_format']
         download_bytes = 0
+        download_tracker = DownloadTracker(progress_bar)
         for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
@@ -104,33 +150,20 @@ class Branch(object):
             branch_context['filehash'] = filehash
             url = inject_variables(url_format, branch_context)
 
+            file_path = os.path.join(self.directory, filename)
+            download = None
             if filename not in self.files:
-                file_downloads[filename] = url
-                download_bytes += filesize
+                download = Download(file_path, url, filesize)
                 print('Missing file:', filename)
             elif self.files[filename] != filehash:
-                file_downloads[filename] = url
-                download_bytes += filesize
+                download = Download(file_path, url, filesize)
                 print('Hash mismatch:', filename,
                       filehash, self.files[filename])
+            if download is not None:
+                download_tracker.downloads.append(download)
         print('Total download size:', download_bytes)
-        await asyncio.gather(*[self.download_file(filename, url)
-                               for filename, url in file_downloads.items()])
-
-    async def download_file(self, filename, url):
-        path = os.path.join(self.directory, filename)
-        directory = os.path.dirname(path)
-        print('Downloading', path, 'from', url, '...')
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        if os.path.isdir(path):
-            shutil.rmtree(path)
-        with open(path, 'wb+') as downloaded_file:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    print(response.status)
-                    async for block in response.content.iter_chunked(1024):
-                        downloaded_file.write(block)
+        await asyncio.gather(*[download.download_file(download_tracker)
+                               for download in download_tracker.downloads])
 
 
 class ClientState(Enum):
@@ -212,7 +245,8 @@ class MainWindow(QWidget):
             'branch': 'develop',
             'platform': platform.system()
         }
-        await asyncio.gather(*[branch.fetch_remote_index(context)
+        await asyncio.gather(*[branch.fetch_remote_index(context,
+                                                         self.progress_bar)
                                for branch in self.branches.values()])
         self.client_state = ClientState.READY
 
@@ -254,7 +288,7 @@ class MainWindow(QWidget):
 
     def on_branch_change(self, selection):
         self.branch = self.branch_lookup[selection]
-        print(self.branch)
+        print("Changed to branch:", self.branch)
 
     def launch_game(self):
         print('Launching game...')
