@@ -1,11 +1,12 @@
 import os
 import json
 import sys
+import shutil
 from util import namedtuple_from_mapping
 from collections import OrderedDict
 
+CONFIG_DIRNAME = 'Launcher'
 CONFIG_FILE = 'config.json'
-LAUNCHER_DATA_DIR = 'Launcher'
 
 # Get the base directory the executable is found in
 # When running from a python interpretter, it will use the current working
@@ -16,9 +17,9 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.getcwd()
 
-LAUNCHER_DIR = os.path.join(BASE_DIR, LAUNCHER_DATA_DIR)
-if not os.path.exists(LAUNCHER_DIR):
-    os.makedirs(LAUNCHER_DIR)
+CONFIG_DIR = os.path.join(BASE_DIR, CONFIG_DIRNAME)
+if not os.path.exists(CONFIG_DIR):
+    os.makedirs(CONFIG_DIR)
 
 if getattr(sys, '_MEIPASS', False):
     RESOURCE_DIR = os.path.abspath(sys._MEIPASS)
@@ -26,7 +27,12 @@ else:
     RESOURCE_DIR = os.getcwd()
 
 # Load Config
-with open(os.path.join(RESOURCE_DIR, CONFIG_FILE)) as config_file:
+config_path = os.path.join(CONFIG_DIR, CONFIG_FILE)
+if not os.path.exists(config_path):
+    resource_config = os.path.join(RESOURCE_DIR, CONFIG_FILE)
+    shutil.copyfile(resource_config, config_path)
+
+with open(config_path) as config_file:
     # Using OrderedDict to preserve JSON ordering of dictionaries
-    CONFIG = namedtuple_from_mapping(
-        json.load(config_file, object_pairs_hook=OrderedDict))
+    config_json = json.load(config_file, object_pairs_hook=OrderedDict)
+    CONFIG = namedtuple_from_mapping(config_json)
