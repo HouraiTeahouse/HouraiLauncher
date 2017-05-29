@@ -10,7 +10,7 @@ import shutil
 import aiohttp
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
-from common import loop
+from common import loop, _
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -19,6 +19,8 @@ from PyQt5.QtCore import *
 
 WIDTH = 640
 HEIGHT = 480
+
+CHUNK_SIZE = 1024
 
 vars_regex = re.compile('{(.*?)}')
 
@@ -71,7 +73,7 @@ class Download(object):
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.url) as response:
                     print(response.status)
-                    async for block in response.content.iter_chunked(1024):
+                    async for block in response.content.iter_chunked(CHUNK_SIZE):
                         self.downloaded_bytes += len(block)
                         if tracker is not None:
                             loop.call_soon_threadsafe(tracker.update)
@@ -196,9 +198,7 @@ class MainWindow(QWidget):
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
-        self.context = {
-            'platform': platform.system()
-        }
+        self.context = { 'platform': platform.system() }
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
@@ -216,7 +216,7 @@ class MainWindow(QWidget):
                     await asyncio.sleep(0.1)
 
     async def ready(self):
-        self.launch_game_btn.setText('Launch Game')
+        self.launch_game_btn.setText(_('Launch Game'))
         self.launch_game_btn.setEnabled(True)
         self.launch_game_btn.show()
         self.progress_bar.hide()
@@ -227,7 +227,7 @@ class MainWindow(QWidget):
         self.client_state = ClientState.GAME_STATUS_CHECK
 
     async def game_status_check(self):
-        self.launch_game_btn.setText('Checking local installation...')
+        self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
         with QThreadExecutor(1) as exec:
@@ -254,7 +254,7 @@ class MainWindow(QWidget):
         self.setFixedSize(WIDTH, HEIGHT)
         self.setWindowTitle(self.config.project)
 
-        self.launch_game_btn = QPushButton('Checking for updates...')
+        self.launch_game_btn = QPushButton(_('Checking for updates...'))
         self.launch_game_btn.setEnabled(False)
 
         self.branch_box = QComboBox()
@@ -264,8 +264,6 @@ class MainWindow(QWidget):
             self.branch_box.hide()
 
         self.progress_bar = QProgressBar()
-        self.progress_bar.setMaximum(0)
-        self.progress_bar.setMaximum(1000)
         self.progress_bar.hide()
 
         self.launch_game_btn.clicked.connect(self.launch_game)
