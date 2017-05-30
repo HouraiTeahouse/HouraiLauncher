@@ -73,7 +73,8 @@ class Download(object):
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.url) as response:
                     print(response.status)
-                    async for block in response.content.iter_chunked(CHUNK_SIZE):
+                    async for block in response.content.iter_chunked(
+                            CHUNK_SIZE):
                         self.downloaded_bytes += len(block)
                         if tracker is not None:
                             loop.call_soon_threadsafe(tracker.update)
@@ -92,7 +93,7 @@ class DownloadTracker(object):
         total_download_size = sum(download.total_size for download in
                                   self.downloads)
         total_downloaded_bytes = sum(download.downloaded_bytes for download in
-                                    self.downloads)
+                                     self.downloads)
         if total_download_size <= 0:
             return
         self.progress_bar.setMinimum(0)
@@ -166,6 +167,13 @@ class Branch(object):
         print('Total download size:', download_bytes)
         await asyncio.gather(*[download.download_file(download_tracker)
                                for download in download_tracker.downloads])
+        for directory, _, files in os.walk(self.directory):
+            for file in files:
+                filename = os.path.join(directory, file).replace(
+                    self.directory + os.path.sep,
+                    '')
+                if filename not in self.remote_index['files']:
+                    print('Extra file', filename)
 
 
 class ClientState(Enum):
@@ -198,7 +206,7 @@ class MainWindow(QWidget):
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
-        self.context = { 'platform': platform.system() }
+        self.context = {'platform': platform.system()}
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
