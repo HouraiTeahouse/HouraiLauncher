@@ -33,7 +33,7 @@ install:
   - cmd: pip freeze
 
   # Build mu using PyInstaller and rename executable with timestamp
-  - cmd: pyinstaller package\pyinstaller.spec
+  - cmd: pyinstaller launcher.spec --name launcher --onefile
 
 # Not a project with an msbuild file, build done at install.
 build: None

@@ -21,7 +21,7 @@ script:
   # Run tests and collect coverage information
   - coverage run --source=src/ -m unittest discover -v -s test
   # Run PyInstaller build
-  - ./pyinstaller.sh
+  - pyinstaller launcher.spec --name launcher --onefile
 cache: pip
 after_success:
   coveralls
