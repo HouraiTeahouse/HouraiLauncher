@@ -1,0 +1,47 @@
+enviroment:
+  matrix:
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5.2"
+      PYTHON_ARCH: "32"
+platform: x86
+configuration: Release
+init:
+  - cmd: ECHO Processor architecture - %PROCESSOR_ARCHITECTURE%
+  - cmd: wmic OS get OSArchitecture
+
+  # As AppVeyor has multiple python install, verify which one uses by default
+  - cmd: ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
+  - cmd: python --version
+  - cmd: python -c "import struct; print(struct.calcsize('P') * 8)"
+
+  # Set the relevant python and pip location to the path
+  - cmd: set PATH=%PYTHON%;%PYTHON%\scripts;%PATH%
+  - cmd: ECHO Path - %PATH%
+
+  # Verify the new default python
+  - cmd: python --version
+  - cmd: pip --version
+
+  # Check out installed python packages
+  - cmd: pip freeze
+
+install:
+  # Temporary fix for PyQt not being installed in correct directory: https://github.com/appveyor/ci/issues/363
+  - REG ADD HKCU\Software\Python\PythonCore\3.5\InstallPath /f /ve /t REG_SZ /d C:\Python35
+
+  # Download PyQt5 with 10min timeout, rename to pyqt5_installer.exe, and install
+  - ps: Start-FileDownload 'http://downloads.sourceforge.net/project/pyqt/PyQt5/PyQt-5.4.2/PyQt5-5.4.2-gpl-Py3.4-Qt5.4.2-x32.exe' -FileName pyqt5_installer.exe -Timeout 600000
+  - cmd: pyqt5_installer.exe /S
+  - cmd: python -c "import PyQt5"
+
+  # Install python dependencies
+  - cmd: pip install pyinstaller
+
+  # Check installed packages again
+  - cmd: pip freeze
+
+  # Build mu using PyInstaller and rename executable with timestamp
+  - cmd: pyinstaller package\pyinstaller.spec
+
+# Not a project with an msbuild file, build done at install.
+build: None
