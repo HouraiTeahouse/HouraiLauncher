@@ -2,20 +2,16 @@
 
 block_cipher = None
 
-added_files = [
-]
-
 a = Analysis(['src/main.py'],
-             pathex=['./src'],
+             pathex=[
+              './src',
+              'C:\Python35\Lib\site-packages\PyQt5\Qt\bin'
+             ],
              binaries=[],
              datas=[
               ('config.json', '.'),
               ('img/*', 'img'),
               ('i18n/*', 'i18n'),
-              # Need to manually add PyQt DLLs due to bug in PyInstaller
-              ('C:\\Python35\\Lib\\site-packages\\PyQt5\\Qt\\bin\\Qt5Core.dll', '.'),
-              ('C:\\Python35\\Lib\\site-packages\\PyQt5\\Qt\\bin\\Qt5Gui.dll', '.'),
-              ('C:\\Python35\\Lib\\site-packages\\PyQt5\\Qt\\bin\\Qt5Widgets.dll', '.')
              ],
              hiddenimports=['config'],
              hookspath=[],
