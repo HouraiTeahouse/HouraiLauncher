@@ -37,3 +37,6 @@ install:
 
 # Not a project with an msbuild file, build done at install.
 build: None
+artifacts:
+  - path: dist\**\*
+    name: dist
