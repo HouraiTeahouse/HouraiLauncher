@@ -1,4 +1,9 @@
 # Hourai Launcher
+[![Windows Build
+status](https://ci.appveyor.com/api/projects/status/jxlwb36kfc8s05ff?svg=true)](https://ci.appveyor.com/project/james7132/hourailauncher)
+[![Travis Build
+Status](https://travis-ci.org/HouraiTeahouse/HouraiLauncher.svg?branch=master)](https://travis-ci.org/HouraiTeahouse/HouraiLauncher)
+
 A cross platform game launcher/patcher.
 
 ## Usage
