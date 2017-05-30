@@ -3,6 +3,7 @@ python:
   - "3.5"
 os:
   - linux
+  # OSX Support for Python is currently not available
   #- osx
 env:
   global:
@@ -19,12 +20,8 @@ script:
   - pep8 --show-source src/ test/
   # Run tests and collect coverage information
   - coverage run --source=src/ -m unittest discover -v -s test
+  # Run PyInstaller build
+  - ./pyinstaller.sh
 cache: pip
 after_success:
   coveralls
-deploy:
-  provider: script
-  script: curl -i -X POST https://houraiteahouse.net:$PORT/deploy/houraiteahouse.net-backend/$TRAVIS_BRANCH?token=$TOKEN
-  skip_cleanup: true
-  on:
-    branch: develop
