@@ -61,14 +61,8 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 Name: "{app}"; Flags: uninsalwaysuninstall;
 
 [Files]
-; Universal Items
-Source: "{#README}"; DestDir: "{app}"; Flags: ignoreversion;
 Source: "{#LICENSE}"; DestDir: "{app}"; Flags: ignoreversion;
-Source: "..\CREDITS.md"; DestDir: "{app}"; Flags: ignoreversion
-
-; Architecture specfic files
-Source: "..\Build\Win{#BITS}\{#BUILD_NAME}.exe"; DestDir: "{app}"; Flags: ignoreversion;
-Source: "..\Build\Win{#BITS}\{#BUILD_NAME}_Data\*.*"; DestDir: "{app}\{#BUILD_NAME}_Data"; Flags: recursesubdirs ignoreversion;
+Source: "..\dist\*.*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion;
 
 [Icons]
 Name: "{group}\{#APP_NAME}"; Filename: "{app}\{#BUILD_NAME}.exe"
