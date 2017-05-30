@@ -9,6 +9,9 @@ matrix:
     # Use generic language for osx
     - os: osx
       language: generic
+env:
+  global:
+    - PYTHONPATH="$TRAVIS_BUILD_DIR/src"
 # Perform the manual steps on osx to install python3 and activate venv
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update                ; fi
@@ -17,13 +20,13 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then source venv/bin/activate   ; fi
 install:
   - python --version
+  - echo $PYTHONPATH
   # install dependencies
   - pip install -r requirements.txt
   # install testing tools
   - pip install coverage
   - pip install coveralls
   - pip install pep8
-  - pip install . test
 script:
   # PEP8 Style Checks
   - pep8 --show-source src/ test/
