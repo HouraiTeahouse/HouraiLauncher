@@ -26,6 +26,11 @@ init:
   - cmd: pip freeze
 
 install:
+  # Install InnoSetup and add to path
+  # Copied from
+  # https://github.com/Phonations/Joker/blob/master/appveyor.yml
+  - choco install -y InnoSetup
+
   # Install python dependencies
   - cmd: pip install -r requirements.txt
 
@@ -35,8 +40,13 @@ install:
   # Build mu using PyInstaller and rename executable with timestamp
   - cmd: pyinstaller windows_launcher.spec --name launcher --onefile
 
+  # Create InnoSetup installers
+  # Set InnoSetup path here, because Cython complained about it.
+  - set PATH=%PATH%;"C:\\Program Files (x86)\\Inno Setup 5"
+  - iscc /Q installer/setup.iss
+
 # Not a project with an msbuild file, build done at install.
-build: None
+build: off
 artifacts:
   - path: dist\**\*
     name: dist
