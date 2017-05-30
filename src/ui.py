@@ -121,7 +121,8 @@ class Branch(object):
         for directory, _, files in os.walk(self.directory):
             for file in files:
                 full_path = os.path.join(directory, file)
-                relative_path = full_path.replace(replacement, '')
+                relative_path = full_path.replace(replacement,
+                                                  '').replace(os.path.sep, '/')
                 self.files[relative_path] = sha256_hash(full_path)
         self.is_indexed = True
 
@@ -171,7 +172,7 @@ class Branch(object):
             for file in files:
                 filename = os.path.join(directory, file).replace(
                     self.directory + os.path.sep,
-                    '')
+                    '').replace(os.path.sep, '/')
                 if filename not in self.remote_index['files']:
                     print('Extra file', filename)
 
