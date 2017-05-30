@@ -9,6 +9,7 @@ matrix:
     # Use generic language for osx
     - os: osx
       language: generic
+      cache: pip
       before_install:
         # Install Python 3.5.2 only
         # Normal brew install gets 3.6.x which is incompatible
