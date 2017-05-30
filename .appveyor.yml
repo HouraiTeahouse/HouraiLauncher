@@ -1,4 +1,4 @@
-enviroment:
+environment:
   matrix:
     - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.2"
