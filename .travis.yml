@@ -11,7 +11,9 @@ matrix:
       language: generic
       before_install:
         - brew update
-        - brew install python3
+        # Install Python 3.5.2 only
+        # Normal brew install gets 3.6.x which is incompatible
+        - brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/ec545d45d4512ace3570782283df4ecda6bb0044/Formula/python3.rb
         - virtualenv venv -p python3
         - source venv/bin/activate
 env:
