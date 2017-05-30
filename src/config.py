@@ -29,7 +29,8 @@ else:
     RESOURCE_DIR = os.getcwd()
 
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
-TRANSLATIONS = gettext.translation('hourai-launcher', TRANSLATION_DIR, fallback=True)
+TRANSLATIONS = gettext.translation(
+    'hourai-launcher', TRANSLATION_DIR, fallback=True)
 
 # Load Config
 config_path = os.path.join(CONFIG_DIR, CONFIG_FILE)
