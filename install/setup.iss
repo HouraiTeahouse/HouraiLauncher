@@ -30,7 +30,8 @@ DefaultGroupName={#APP_NAME}
 AllowNoIcons=yes
 ;AppReadmeFile={#README}
 LicenseFile={#LICENSE}
-OutputBaseFilename=FC_Setup_v{%APPVEYOR_BUILD_VERSION|#APP_VERSION}
+OutputBaseFilename=FC_Setup
+;_v{%APPVEYOR_BUILD_VERSION|APP_VERSION}
 WizardImageFile=installer_image.bmp
 WizardSmallImageFile=small_installer_image.bmp
 WizardImageStretch=no
