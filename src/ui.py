@@ -3,6 +3,7 @@ import platform
 import hashlib
 import sys
 import subprocess
+import logging
 import re
 import asyncio
 import time
@@ -64,7 +65,7 @@ class Download(object):
     async def download_file(self, tracker=None):
         path = self.file_path
         directory = os.path.dirname(path)
-        print('Downloading', path, 'from', self.url, '...')
+        logging.info('Downloading %s from %s...' % (path, self.url))
         if not os.path.exists(directory):
             os.makedirs(directory)
         if os.path.isdir(path):
@@ -72,7 +73,7 @@ class Download(object):
         with open(path, 'wb+') as downloaded_file:
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.url) as response:
-                    print(response.status)
+                    logging.info(response.status)
                     async for block in response.content.iter_chunked(
                             CHUNK_SIZE):
                         self.downloaded_bytes += len(block)
@@ -130,7 +131,7 @@ class Branch(object):
         binary_path = os.path.join(self.directory, game_binary)
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
-        print("Command:", ' '.join(args))
+        logging.info("Command:", ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
 
@@ -138,7 +139,7 @@ class Branch(object):
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
         url = inject_variables(self.config.index_endpoint, branch_context)
-        print('Remote index URL:', url)
+        logging.info('Remote index URL: %s' % url)
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 self.remote_index = await response.json()
@@ -158,14 +159,14 @@ class Branch(object):
             download = None
             if filename not in self.files:
                 download = Download(file_path, url, filesize)
-                print('Missing file:', filename)
+                logging.info('Missing file:', filename)
             elif self.files[filename] != filehash:
                 download = Download(file_path, url, filesize)
-                print('Hash mismatch:', filename,
+                logging.info('Hash mismatch:', filename,
                       filehash, self.files[filename])
             if download is not None:
                 download_tracker.downloads.append(download)
-        print('Total download size:', download_bytes)
+        logging.info('Total download size: %s' % download_bytes)
         await asyncio.gather(*[download.download_file(download_tracker)
                                for download in download_tracker.downloads])
         for directory, _, files in os.walk(self.directory):
@@ -174,7 +175,7 @@ class Branch(object):
                     self.directory + os.path.sep,
                     '').replace(os.path.sep, '/')
                 if filename not in self.remote_index['files']:
-                    print('Extra file', filename)
+                    logging.info('Extra file', filename)
 
 
 class ClientState(Enum):
@@ -243,7 +244,8 @@ class MainWindow(QWidget):
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
-        print('Game status check took', time.time() - start, 'seconds')
+        logging.info('Game status check took %s seconds.' % (time.time() -
+            start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
@@ -295,10 +297,10 @@ class MainWindow(QWidget):
 
     def on_branch_change(self, selection):
         self.branch = self.branch_lookup[selection]
-        print("Changed to branch:", self.branch)
+        logging.info("Changed to branch: %s" % self.branch)
 
     def launch_game(self):
-        print('Launching game...')
+        logging.info('Launching game...')
         self.launch_game_btn.setEnabled(False)
         system = platform.system()
         binary = self.config.game_binary[system]
