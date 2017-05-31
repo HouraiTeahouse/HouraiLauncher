@@ -36,5 +36,9 @@ script:
   - coverage run --source=src/ -m unittest discover -v -s test
   # Run PyInstaller build
   - pyinstaller launcher.spec --name launcher --onefile
-after_success:
-  coveralls
+deploy:
+  provider: script
+  script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH?token=$TOKEN
+  skip_cleanup: true
+  on:
+    branch: master
