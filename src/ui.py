@@ -163,7 +163,7 @@ class Branch(object):
             elif self.files[filename] != filehash:
                 download = Download(file_path, url, filesize)
                 logging.info('Hash mismatch:', filename,
-                      filehash, self.files[filename])
+                             filehash, self.files[filename])
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)
@@ -245,7 +245,7 @@ class MainWindow(QWidget):
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
         logging.info('Game status check took %s seconds.' % (time.time() -
-            start))
+                                                             start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
