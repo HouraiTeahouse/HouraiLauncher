@@ -27,6 +27,7 @@ AppSupportURL=http://houraiteahouse.net
 AppUpdatesURL=http://houraiteahouse.net
 DefaultDirName=C:\Games\{#APP_NAME}
 DefaultGroupName={#APP_NAME}
+SetupIconFile=..\img\app.ico
 AllowNoIcons=yes
 ;AppReadmeFile={#README}
 LicenseFile={#LICENSE}
