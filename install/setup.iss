@@ -9,7 +9,7 @@
 
 #define APP_NAME      'Fantasy Crescendo'
 #define APP_VERSION   '0.3.0-alpha'
-#define BUILD_NAME    'fc'
+#define BUILD_NAME    'launcher'
 
 #define README        '..\README.md'
 #define LICENSE       '..\LICENSE'
