@@ -11,7 +11,7 @@ import shutil
 import aiohttp
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
-from common import loop, _
+from common import inject_variables, loop, _
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -28,20 +28,6 @@ vars_regex = re.compile('{(.*?)}')
 
 def sanitize_url(url):
     return url.lower().replace(' ', '-')
-
-
-def inject_variables(path_format, vars_obj):
-    matches = vars_regex.findall(path_format)
-    path = path_format
-    for match in matches:
-        target = '{%s}' % match
-        if isinstance(vars_obj, dict) and match in vars_obj:
-            path = path.replace(target, str(vars_obj[match]))
-        else:
-            replacement = getattr(vars_obj, match, None)
-            if replacement is not None:
-                path = path.replace(target, str(replacement))
-    return path
 
 
 def sha256_hash(filepath, block_size=65536):
@@ -163,7 +149,7 @@ class Branch(object):
             elif self.files[filename] != filehash:
                 download = Download(file_path, url, filesize)
                 logging.info('Hash mismatch:', filename,
-                      filehash, self.files[filename])
+                             filehash, self.files[filename])
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)
@@ -208,7 +194,7 @@ class MainWindow(QWidget):
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
-        self.context = {'platform': platform.system()}
+        self.context = dict(GLOBAL_CONTEXT)
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
@@ -245,7 +231,7 @@ class MainWindow(QWidget):
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
         logging.info('Game status check took %s seconds.' % (time.time() -
-            start))
+                     start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
