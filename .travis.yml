@@ -44,14 +44,7 @@ deploy:
       branch: master
       os: linux
   - provider: script
-    script:
-      - ls dist/*
-      - |
-        for file in dist/*
-        do
-        curl -i -X POST $DEPLOY_UPLOAD_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN \
-                -F "file=@dist/$file"
-        done
+    script: deploy.sh
     skip_cleanup: true
     on:
       branch: master
