@@ -1,17 +1,17 @@
+import aiohttp
+import asyncio
+import hashlib
+import logging
 import os
 import platform
-import hashlib
-import sys
-import subprocess
-import logging
 import re
-import asyncio
-import time
 import shutil
-import aiohttp
+import subprocess
+import sys
+import time
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
-from common import loop, _
+from common import inject_variables, loop, _
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -21,30 +21,14 @@ from PyQt5.QtCore import *
 WIDTH = 640
 HEIGHT = 480
 
-CHUNK_SIZE = 1024
-
-vars_regex = re.compile('{(.*?)}')
+CHUNK_SIZE = 1024 * 1024
 
 
 def sanitize_url(url):
     return url.lower().replace(' ', '-')
 
 
-def inject_variables(path_format, vars_obj):
-    matches = vars_regex.findall(path_format)
-    path = path_format
-    for match in matches:
-        target = '{%s}' % match
-        if isinstance(vars_obj, dict) and match in vars_obj:
-            path = path.replace(target, str(vars_obj[match]))
-        else:
-            replacement = getattr(vars_obj, match, None)
-            if replacement is not None:
-                path = path.replace(target, str(replacement))
-    return path
-
-
-def sha256_hash(filepath, block_size=65536):
+def sha256_hash(filepath, block_size=CHUNK_SIZE):
     hash = hashlib.sha256()
     with open(filepath, 'rb') as hash_file:
         buf = hash_file.read(block_size)
@@ -52,6 +36,15 @@ def sha256_hash(filepath, block_size=65536):
             hash.update(buf)
             buf = hash_file.read(block_size)
     return hash.hexdigest()
+
+
+def list_files(directory):
+    for directory, _, files in os.walk(self.directory):
+        for file in files:
+            full_path = os.path.join(directory, file)
+            relative_path = full_path.replace(replacement,
+                                              '').replace(os.path.sep, '/')
+            yield full_path, relative_path
 
 
 class Download(object):
@@ -62,7 +55,7 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    async def download_file(self, tracker=None):
+    async def download_file(self, session, tracker=None):
         path = self.file_path
         directory = os.path.dirname(path)
         logging.info('Downloading %s from %s...' % (path, self.url))
@@ -71,15 +64,14 @@ class Download(object):
         if os.path.isdir(path):
             shutil.rmtree(path)
         with open(path, 'wb+') as downloaded_file:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(self.url) as response:
-                    logging.info(response.status)
-                    async for block in response.content.iter_chunked(
-                            CHUNK_SIZE):
-                        self.downloaded_bytes += len(block)
-                        if tracker is not None:
-                            loop.call_soon_threadsafe(tracker.update)
-                        downloaded_file.write(block)
+            async with session.get(self.url) as response:
+                logging.info(response.status)
+                async for block in response.content.iter_chunked(
+                        CHUNK_SIZE):
+                    self.downloaded_bytes += len(block)
+                    if tracker is not None:
+                        loop.call_soon_threadsafe(tracker.update)
+                    downloaded_file.write(block)
 
 
 class DownloadTracker(object):
@@ -119,12 +111,8 @@ class Branch(object):
             self.is_indexed = True
             return
         replacement = self.directory + os.path.sep
-        for directory, _, files in os.walk(self.directory):
-            for file in files:
-                full_path = os.path.join(directory, file)
-                relative_path = full_path.replace(replacement,
-                                                  '').replace(os.path.sep, '/')
-                self.files[relative_path] = sha256_hash(full_path)
+        self.files = {relative: sha256_hash(full) for full, relative, in
+                      list_files(self.directory)}
         self.is_indexed = True
 
     def launch_game(self, game_binary, command_args):
@@ -167,15 +155,14 @@ class Branch(object):
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)
-        await asyncio.gather(*[download.download_file(download_tracker)
-                               for download in download_tracker.downloads])
-        for directory, _, files in os.walk(self.directory):
-            for file in files:
-                filename = os.path.join(directory, file).replace(
-                    self.directory + os.path.sep,
-                    '').replace(os.path.sep, '/')
-                if filename not in self.remote_index['files']:
-                    logging.info('Extra file', filename)
+        async with aiohttp.ClientSession() as session:
+            await asyncio.gather(*[download.download_file(session,
+                                                          download_tracker)
+                                   for download in download_tracker.downloads])
+        files = filter(lambda _, f: f not in self.remote_index['files'],
+                       list_files(self.directory))
+        for _, filename in files:
+            logging.info('Extra file', filename)
 
 
 class ClientState(Enum):
@@ -208,7 +195,7 @@ class MainWindow(QWidget):
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
-        self.context = {'platform': platform.system()}
+        self.context = dict(GLOBAL_CONTEXT)
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
@@ -218,12 +205,11 @@ class MainWindow(QWidget):
         self.init_ui()
 
     async def main_loop(self):
-        with QThreadExecutor(1) as exec:
-            while True:
-                if self.client_state in self.state_mapping:
-                    await self.state_mapping[self.client_state]()
-                else:
-                    await asyncio.sleep(0.1)
+        while True:
+            if self.client_state in self.state_mapping:
+                await self.state_mapping[self.client_state]()
+            else:
+                await asyncio.sleep(0.1)
 
     async def ready(self):
         self.launch_game_btn.setText(_('Launch Game'))
@@ -240,12 +226,12 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
-        with QThreadExecutor(1) as exec:
+        with QThreadExecutor(len(self.branches)) as exec:
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
         logging.info('Game status check took %s seconds.' % (time.time() -
-                                                             start))
+                     start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
