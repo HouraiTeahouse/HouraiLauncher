@@ -37,8 +37,19 @@ script:
   # Run PyInstaller build
   - pyinstaller launcher.spec --name launcher --onefile
 deploy:
-  provider: script
-  script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH?token=$TOKEN
-  skip_cleanup: true
-  on:
-    branch: master
+  - provider: script
+    script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN
+    skip_cleanup: true
+    on:
+      branch: master
+      os: linux
+  - provider: script
+    script: |
+      for file in dist/*
+      do
+        curl -i -X POST $DEPLOY_UPLOAD_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN \
+                -F "file=@dist/$file"
+      done
+    skip_cleanup: true
+    on:
+      branch: master
