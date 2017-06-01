@@ -4,7 +4,9 @@ import sys
 import shutil
 import gettext
 import requests
-from common import inject_variables
+import logging
+from requests.exceptions import HTTPError
+from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
 from collections import OrderedDict
 
@@ -33,6 +35,7 @@ else:
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
 TRANSLATIONS = gettext.translation(
     'hourai-launcher', TRANSLATION_DIR, fallback=True)
+TRANSLATIONS.install()
 
 # Load Config
 config_path = os.path.join(CONFIG_DIR, CONFIG_FILE)
@@ -40,20 +43,25 @@ if not os.path.exists(config_path):
     resource_config = os.path.join(RESOURCE_DIR, CONFIG_FILE)
     shutil.copyfile(resource_config, config_path)
 
+logging.info('Loading local config from %s...' % config_path)
 with open(config_path, 'r+') as config_file:
     # Using OrderedDict to preserve JSON ordering of dictionaries
     config_json = json.load(config_file, object_pairs_hook=OrderedDict)
 
     old_url = None
-
-    url = inject_variables(config_json['config_endpoint'])
-    while old_url != url:
+    url = ''
+    while old_url != url and 'config_endpoint' in config_json:
+        old_url = url
+        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+        url = inject_variables(config_json['config_endpoint'])
+        logging.info('Loading remote config from %s' % url)
         try:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             config_json = response.json()
+            logging.info('Fetched new config from %s.' % url)
             config_file.seek(0)
-            logging.info('Fetched new config from %s.')
+            config_file.truncate()
             json.dump(config_json, config_file)
             logging.info('Saved new config to disk.')
         except HTTPError as http_error:
@@ -62,6 +70,4 @@ with open(config_path, 'r+') as config_file:
         except Timeout as timeout:
             logging.error(timeout)
             break
-        old_url = url
-        url = inject_variables(config_json['config_endpoint'])
     CONFIG = namedtuple_from_mapping(config_json)
