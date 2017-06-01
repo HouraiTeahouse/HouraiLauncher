@@ -17,7 +17,8 @@ matrix:
         - brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/ec545d45d4512ace3570782283df4ecda6bb0044/Formula/python3.rb
         - virtualenv venv -p python3
         - source venv/bin/activate
-        - pip install six
+        - which pip
+        - pip install six wheel
 env:
   global:
     - PYTHONPATH="$TRAVIS_BUILD_DIR/src"
