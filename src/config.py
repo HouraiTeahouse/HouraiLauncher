@@ -3,6 +3,8 @@ import json
 import sys
 import shutil
 import gettext
+import requests
+from common import inject_variables
 from util import namedtuple_from_mapping
 from collections import OrderedDict
 
@@ -38,7 +40,28 @@ if not os.path.exists(config_path):
     resource_config = os.path.join(RESOURCE_DIR, CONFIG_FILE)
     shutil.copyfile(resource_config, config_path)
 
-with open(config_path) as config_file:
+with open(config_path, 'r+') as config_file:
     # Using OrderedDict to preserve JSON ordering of dictionaries
     config_json = json.load(config_file, object_pairs_hook=OrderedDict)
+
+    old_url = None
+
+    url = inject_variables(config_json['config_endpoint'])
+    while old_url != url:
+        try:
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            config_json = response.json()
+            config_file.seek(0)
+            logging.info('Fetched new config from %s.')
+            json.dump(config_json, config_file)
+            logging.info('Saved new config to disk.')
+        except HTTPError as http_error:
+            logging.error(http_error)
+            break
+        except Timeout as timeout:
+            logging.error(timeout)
+            break
+        old_url = url
+        url = inject_variables(config_json['config_endpoint'])
     CONFIG = namedtuple_from_mapping(config_json)
