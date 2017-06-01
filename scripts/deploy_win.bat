@@ -1,0 +1,8 @@
+
+for /r %%i in (dist/*) do echo %%i
+
+for %%f in (dist/*) do (
+curl.exe -i -X POST "%DEPLOY_UPLOAD_URL%/%APPVEYOR_REPO_BRANCH%/Windows?token=%TOKEN%" \
+        -F "file=@%%f" \
+        --keepalive-time 2
+)
