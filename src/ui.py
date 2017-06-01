@@ -4,14 +4,13 @@ import hashlib
 import logging
 import os
 import platform
-import re
 import shutil
 import subprocess
 import sys
 import time
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
-from common import inject_variables, loop, _
+from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -22,10 +21,6 @@ WIDTH = 640
 HEIGHT = 480
 
 CHUNK_SIZE = 1024 * 1024
-
-
-def sanitize_url(url):
-    return url.lower().replace(' ', '-')
 
 
 def sha256_hash(filepath, block_size=CHUNK_SIZE):
@@ -39,7 +34,8 @@ def sha256_hash(filepath, block_size=CHUNK_SIZE):
 
 
 def list_files(directory):
-    for directory, _, files in os.walk(self.directory):
+    replacement = directory + os.path.sep
+    for directory, _, files in os.walk(directory):
         for file in files:
             full_path = os.path.join(directory, file)
             relative_path = full_path.replace(replacement,
@@ -110,7 +106,6 @@ class Branch(object):
         if not os.path.exists(self.directory):
             self.is_indexed = True
             return
-        replacement = self.directory + os.path.sep
         self.files = {relative: sha256_hash(full) for full, relative, in
                       list_files(self.directory)}
         self.is_indexed = True
@@ -159,7 +154,7 @@ class Branch(object):
             await asyncio.gather(*[download.download_file(session,
                                                           download_tracker)
                                    for download in download_tracker.downloads])
-        files = filter(lambda _, f: f not in self.remote_index['files'],
+        files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for _, filename in files:
             logging.info('Extra file', filename)

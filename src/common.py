@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import sys
+import platform
+import re
 from quamash import QEventLoop
-from config import TRANSLATIONS
 from PyQt5.QtWidgets import QApplication
 
 logging.basicConfig(filename='launcher_log.txt',
@@ -12,10 +13,13 @@ logging.basicConfig(filename='launcher_log.txt',
 app = QApplication(sys.argv)
 loop = QEventLoop(app)
 asyncio.set_event_loop(loop)
-_ = TRANSLATIONS.gettext
 GLOBAL_CONTEXT = {'platform': platform.system()}
 
 vars_regex = re.compile('{(.*?)}')
+
+
+def sanitize_url(url):
+    return url.lower().replace(' ', '-')
 
 
 def inject_variables(path_format, vars_obj=GLOBAL_CONTEXT):
