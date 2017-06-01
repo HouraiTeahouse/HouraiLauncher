@@ -1,14 +1,14 @@
+import aiohttp
+import asyncio
+import hashlib
+import logging
 import os
 import platform
-import hashlib
-import sys
-import subprocess
-import logging
 import re
-import asyncio
-import time
 import shutil
-import aiohttp
+import subprocess
+import sys
+import time
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, _
@@ -22,8 +22,6 @@ WIDTH = 640
 HEIGHT = 480
 
 CHUNK_SIZE = 1024 * 1024
-
-vars_regex = re.compile('{(.*?)}')
 
 
 def sanitize_url(url):
@@ -228,7 +226,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
-        with QThreadExecutor(1) as exec:
+        with QThreadExecutor(len(self.branches)) as exec:
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
