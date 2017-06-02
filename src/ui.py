@@ -226,12 +226,30 @@ class MainWindow(QWidget):
         url = inject_variables(self.config.launcher_endpoint, self.context)
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(loop=loop) as session:
             async with session.get(hash_url) as response:
                 remote_launcher_hash = await response.read()
                 logging.info('Remote launcher hash: %s' % remote_launcher_hash)
-            if remote_launcher_hash != launcher_hash:
-                logging.info('Fetching new launcher from: %s' % url)
+            if remote_launcher_hash == launcher_hash:
+                return
+            logging.info('Fetching new launcher from: %s' % url)
+            temp_file = sys.executable + '.new'
+            old_file = sys.executable + '.old'
+            with open(temp_file, 'wb+') as file_handle:
+                async with session.get(url) as response:
+                    #TODO(james7132): Check for failure
+                    async for data in response.content.iter_chunked(CHUNK_SIZE):
+                        file_handle.write(data)
+            if remote_launcher_hash != sha256_hash(temp_file):
+                logging.error('Downloaded launcher does not match one described'
+                              ' by remote hash file.')
+            if os.path.exists(old_file):
+                os.remove(old_file)
+            os.rename(sys.executable, old_file)
+            os.rename(temp_file, sys.executable)
+            os.chmod(sys.executable, 0o750)
+            subprocess.Popen([sys.executable])
+            sys.exit(0)
 
     async def game_status_check(self):
         self.launch_game_btn.setText(_('Checking local installation...'))
