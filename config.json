@@ -4,6 +4,7 @@
   "config_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/config.json",
   "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platform}/launcher",
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}/{platform}/index.json",
+  "news_rss_feed": "https://www.reddit.com/r/touhou.rss",
   "game_binary": {
     "Windows": "fc.exe",
     "Linux": "fc.x86_64"
