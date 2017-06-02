@@ -6,6 +6,8 @@ matrix:
       sudo: required
       python: 3.5
       cache: pip
+      dist: trusty
+      sudo: false
     # Use generic language for osx
     - os: osx
       language: generic
