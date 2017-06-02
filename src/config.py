@@ -75,3 +75,4 @@ with open(config_path, 'r+') as config_file:
             logging.error(timeout)
             break
     CONFIG = namedtuple_from_mapping(config_json)
+    GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
