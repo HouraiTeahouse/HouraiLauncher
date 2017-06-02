@@ -228,7 +228,7 @@ class MainWindow(QWidget):
         logging.info('Fetching remote hash from: %s' % hash_url)
         async with aiohttp.ClientSession(loop=loop) as session:
             async with session.get(hash_url) as response:
-                remote_launcher_hash = await response.read()
+                remote_launcher_hash = await response.text()
                 logging.info('Remote launcher hash: %s' % remote_launcher_hash)
             if remote_launcher_hash == launcher_hash:
                 return
