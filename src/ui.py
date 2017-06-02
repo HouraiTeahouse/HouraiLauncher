@@ -237,12 +237,13 @@ class MainWindow(QWidget):
             old_file = sys.executable + '.old'
             with open(temp_file, 'wb+') as file_handle:
                 async with session.get(url) as response:
-                    #TODO(james7132): Check for failure
-                    async for data in response.content.iter_chunked(CHUNK_SIZE):
+                    # TODO(james7132): Check for failure
+                    async for data in response.content \
+                                              .iter_chunked(CHUNK_SIZE):
                         file_handle.write(data)
             if remote_launcher_hash != sha256_hash(temp_file):
-                logging.error('Downloaded launcher does not match one described'
-                              ' by remote hash file.')
+                logging.error('Downloaded launcher does not match one'
+                              ' described by remote hash file.')
             if os.path.exists(old_file):
                 os.remove(old_file)
             os.rename(sys.executable, old_file)
@@ -260,7 +261,7 @@ class MainWindow(QWidget):
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
         logging.info('Game status check took %s seconds.' % (time.time() -
-                     start))
+                                                             start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
