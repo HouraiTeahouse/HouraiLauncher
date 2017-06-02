@@ -142,10 +142,10 @@ class Branch(object):
             download = None
             if filename not in self.files:
                 download = Download(file_path, url, filesize)
-                logging.info('Missing file:', filename)
+                logging.info('Missing file: %s' % filename)
             elif self.files[filename] != filehash:
                 download = Download(file_path, url, filesize)
-                logging.info('Hash mismatch:', filename,
+                logging.info('Hash mismatch: %s' % filename,
                              filehash, self.files[filename])
             if download is not None:
                 download_tracker.downloads.append(download)
@@ -228,7 +228,8 @@ class MainWindow(QWidget):
         logging.info('Fetching remote hash from: %s' % hash_url)
         async with aiohttp.ClientSession() as session:
             async with session.get(hash_url) as response:
-                remote_launcher_hash = await response.content
+                remote_launcher_hash = await response.read()
+                logging.info('Remote launcher hash: %s' % remote_launcher_hash)
             if remote_launcher_hash != launcher_hash:
                 logging.info('Fetching new launcher from: %s' % url)
 
