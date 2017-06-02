@@ -2,7 +2,7 @@
   "project": "Fantasy Crescendo",
   "logo": "img/logo.png",
   "config_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/config.json",
-  "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platfrom}/launcher",
+  "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platform}/launcher",
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}/{platform}/index.json",
   "game_binary": {
     "Windows": "fc.exe",
