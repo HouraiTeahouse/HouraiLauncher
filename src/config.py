@@ -5,6 +5,7 @@ import shutil
 import gettext
 import requests
 import logging
+import gettext_windows
 from requests.exceptions import HTTPError
 from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
@@ -36,6 +37,7 @@ if getattr(sys, '_MEIPASS', False):
 else:
     RESOURCE_DIR = os.getcwd()
 
+gettext_windows.setup_env()
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
 TRANSLATIONS = gettext.translation(
     'hourai-launcher', TRANSLATION_DIR, fallback=True)
