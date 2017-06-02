@@ -191,6 +191,7 @@ class MainWindow(QWidget):
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
         self.context = dict(GLOBAL_CONTEXT)
+        print(self.context)
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
@@ -216,6 +217,20 @@ class MainWindow(QWidget):
     async def launcher_update_check(self):
         # TODO(james7132): Properly set this up
         self.client_state = ClientState.GAME_STATUS_CHECK
+        if not hasattr(sys, 'frozen'):
+            logging.info('Not build executable')
+            return
+        launcher_hash = sha256_hash(sys.executable)
+        logging.info('Launcher Hash: %s' % launcher_hash)
+        print(self.config)
+        url = inject_variables(self.config.launcher_endpoint, self.context)
+        hash_url = url + '.hash'
+        logging.info('Fetching remote hash from: %s' % hash_url)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(hash_url) as response:
+                remote_launcher_hash = await response.content
+            if remote_launcher_hash != launcher_hash:
+                logging.info('Fetching new launcher from: %s' % url)
 
     async def game_status_check(self):
         self.launch_game_btn.setText(_('Checking local installation...'))

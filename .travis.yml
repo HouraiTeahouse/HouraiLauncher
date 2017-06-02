@@ -44,8 +44,9 @@ deploy:
     script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN
     skip_cleanup: true
     on:
-      branch: master
-      os: linux
+      branch:
+        - config
+        - master
   - provider: script
     script: ./scripts/deploy.sh
     skip_cleanup: true
