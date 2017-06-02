@@ -23,6 +23,10 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.getcwd()
 
+logging.basicConfig(filename=os.path.join(BASE_DIR, 'launcher_log.txt'),
+                    filemode='w',
+                    level=logging.INFO)
+
 CONFIG_DIR = os.path.join(BASE_DIR, CONFIG_DIRNAME)
 if not os.path.exists(CONFIG_DIR):
     os.makedirs(CONFIG_DIR)

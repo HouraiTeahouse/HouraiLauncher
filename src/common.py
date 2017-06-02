@@ -1,14 +1,9 @@
 import asyncio
-import logging
 import sys
 import platform
 import re
 from quamash import QEventLoop
 from PyQt5.QtWidgets import QApplication
-
-logging.basicConfig(filename='launcher_log.txt',
-                    filemode='w',
-                    level=logging.INFO)
 
 app = QApplication(sys.argv)
 loop = QEventLoop(app)
