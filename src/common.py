@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import platform
 import re
@@ -8,7 +9,10 @@ from PyQt5.QtWidgets import QApplication
 app = QApplication(sys.argv)
 loop = QEventLoop(app)
 asyncio.set_event_loop(loop)
-GLOBAL_CONTEXT = {'platform': platform.system()}
+GLOBAL_CONTEXT = {
+    'platform': platform.system(),
+    'executable': os.path.basename(sys.executable)
+}
 
 vars_regex = re.compile('{(.*?)}')
 

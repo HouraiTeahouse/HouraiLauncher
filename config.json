@@ -2,7 +2,7 @@
   "project": "Fantasy Crescendo",
   "logo": "img/logo.png",
   "config_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/config.json",
-  "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platform}/launcher",
+  "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platform}/{executable}",
   "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}/{platform}/index.json",
   "news_rss_feed": "https://www.reddit.com/r/touhou.rss",
   "game_binary": {
