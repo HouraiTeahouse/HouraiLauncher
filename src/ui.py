@@ -230,8 +230,8 @@ class MainWindow(QWidget):
             label.setOpenExternalLinks(True)
             label.setText('<a href=%s>%s</a>' % (entry.link, entry.title))
             self.news_view.addRow(QLabel(format_date(entry_date)), label)
-            logging.info('News Item: %s (%s)' % (format_date(entry_date),
-                entry.title))
+            logging.info('News Item: %s (%s)' %
+                         (format_date(entry_date), entry.title))
             count += 1
             if count >= 10:
                 break
