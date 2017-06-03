@@ -13,7 +13,11 @@ a = Analysis(['src/main.py'],
               ('img/*', 'img'),
               ('i18n/*', 'i18n'),
              ],
-             hiddenimports=['config'],
+             hiddenimports=[
+              'config',
+              'babel.dates',
+              'babel.numbers'
+            ],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
