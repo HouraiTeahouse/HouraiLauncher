@@ -8,6 +8,12 @@ import shutil
 import subprocess
 import sys
 import time
+import feedparser
+import locale
+import itertools
+from babel.dates import format_date
+from datetime import datetime
+from time import mktime
 from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
@@ -191,7 +197,6 @@ class MainWindow(QWidget):
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
         self.context = dict(GLOBAL_CONTEXT)
-        print(self.context)
         self.state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
@@ -201,11 +206,33 @@ class MainWindow(QWidget):
         self.init_ui()
 
     async def main_loop(self):
+        asyncio.ensure_future(self.fetch_news(), loop=loop)
         while True:
             if self.client_state in self.state_mapping:
                 await self.state_mapping[self.client_state]()
             else:
                 await asyncio.sleep(0.1)
+
+    async def fetch_news(self):
+        logging.info('Fetching news!')
+        if not hasattr(self.config, 'news_rss_feed'):
+            logging.info('No specified news RSS feed. Aborting fetch.')
+            return
+        async with aiohttp.ClientSession(loop=loop) as session:
+            async with session.get(self.config.news_rss_feed) as response:
+                rss_content = await response.text()
+        rss_data = feedparser.parse(rss_content)
+        count = 0
+        for entry in rss_data.entries:
+            entry_time = datetime.fromtimestamp(mktime(entry.updated_parsed))
+            entry_date = entry_time.date()
+            label = QLabel()
+            label.setOpenExternalLinks(True)
+            label.setText('<a href=%s>%s</a>' % (entry.link, entry.title))
+            self.news_view.addRow(QLabel(format_date(entry_date)), label)
+            count += 1
+            if count >= 10:
+                break
 
     async def ready(self):
         self.launch_game_btn.setText(_('Launch Game'))
@@ -215,14 +242,12 @@ class MainWindow(QWidget):
         await asyncio.sleep(0.1)
 
     async def launcher_update_check(self):
-        # TODO(james7132): Properly set this up
         self.client_state = ClientState.GAME_STATUS_CHECK
         if not hasattr(sys, 'frozen'):
             logging.info('Not build executable')
             return
         launcher_hash = sha256_hash(sys.executable)
         logging.info('Launcher Hash: %s' % launcher_hash)
-        print(self.config)
         url = inject_variables(self.config.launcher_endpoint, self.context)
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
@@ -290,6 +315,8 @@ class MainWindow(QWidget):
         if len(self.config.branches) <= 1:
             self.branch_box.hide()
 
+        self.news_view = QFormLayout()
+
         self.progress_bar = QProgressBar()
         self.progress_bar.hide()
 
@@ -304,6 +331,7 @@ class MainWindow(QWidget):
         # Default Layout
         default_layout = QVBoxLayout()
         default_layout.addWidget(logo_label)
+        default_layout.addLayout(self.news_view)
         default_layout.addStretch(1)
         default_layout.addWidget(self.branch_box)
         default_layout.addWidget(self.launch_game_btn)

@@ -3,6 +3,7 @@ appdirs==1.4.3
 async-timeout==1.2.1
 certifi==2017.4.17
 chardet==3.0.3
+feedparser==5.2.1
 gettext-windows==1.0
 idna==2.5
 multidict==2.1.5
