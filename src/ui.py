@@ -36,6 +36,7 @@ def sha256_hash(filepath, block_size=CHUNK_SIZE):
         while len(buf) > 0:
             hash.update(buf)
             buf = hash_file.read(block_size)
+    logging.info('File hash: %s (%s)' % (hash.hexdigest(), filepath))
     return hash.hexdigest()
 
 
@@ -67,7 +68,7 @@ class Download(object):
             shutil.rmtree(path)
         with open(path, 'wb+') as downloaded_file:
             async with session.get(self.url) as response:
-                logging.info(response.status)
+                logging.info('Response: %s (%s)' % (response.status, self.url))
                 async for block in response.content.iter_chunked(
                         CHUNK_SIZE):
                     self.downloaded_bytes += len(block)
@@ -128,7 +129,7 @@ class Branch(object):
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
         url = inject_variables(self.config.index_endpoint, branch_context)
-        logging.info('Remote index URL: %s' % url)
+        logging.info('Fetching remote index from %s...' % url)
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 self.remote_index = await response.json()
@@ -153,6 +154,8 @@ class Branch(object):
                 download = Download(file_path, url, filesize)
                 logging.info('Hash mismatch: %s' % filename,
                              filehash, self.files[filename])
+            else:
+                logging.info('Matched File: %s (%s)' % (filehash, filename))
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)

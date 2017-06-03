@@ -33,27 +33,32 @@ else:
 logging.basicConfig(filename=os.path.join(BASE_DIR, 'launcher_log.txt'),
                     filemode='w',
                     level=logging.INFO)
+logging.info('Base Directory: %s' % BASE_DIR)
 
 CONFIG_DIR = os.path.join(BASE_DIR, CONFIG_DIRNAME)
 if not os.path.exists(CONFIG_DIR):
     os.makedirs(CONFIG_DIR)
+logging.info('Config Directory: %s' % CONFIG_DIR)
 
 if getattr(sys, '_MEIPASS', False):
     RESOURCE_DIR = os.path.abspath(sys._MEIPASS)
 else:
     RESOURCE_DIR = os.getcwd()
+logging.info('Resource Directory: %s' % RESOURCE_DIR)
 
 if 'win' in platform.platform().lower():
+    logging.info('Setting Windows enviorment variables for translation...')
     gettext_windows.setup_env()
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
 TRANSLATIONS = gettext.translation(
     'hourai-launcher', TRANSLATION_DIR, fallback=True)
 TRANSLATIONS.install()
+logging.info('Translation Directory: %s' % TRANSLATION_DIR)
 
 # Load Config
 config_path = os.path.join(CONFIG_DIR, CONFIG_FILE)
-if not os.path.exists(config_path):
-    resource_config = os.path.join(RESOURCE_DIR, CONFIG_FILE)
+resource_config = os.path.join(RESOURCE_DIR, CONFIG_FILE)
+if not os.path.exists(config_path) and os.path.exists(resource_config):
     shutil.copyfile(resource_config, config_path)
 
 logging.info('Loading local config from %s...' % config_path)
@@ -62,11 +67,9 @@ with open(config_path, 'r+') as config_file:
     config_json = json.load(config_file, object_pairs_hook=OrderedDict)
 
     old_url = None
-    url = ''
+    GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+    url = inject_variables(config_json['config_endpoint'])
     while old_url != url and 'config_endpoint' in config_json:
-        old_url = url
-        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
-        url = inject_variables(config_json['config_endpoint'])
         logging.info('Loading remote config from %s' % url)
         try:
             response = requests.get(url, timeout=5)
@@ -76,12 +79,15 @@ with open(config_path, 'r+') as config_file:
             config_file.seek(0)
             config_file.truncate()
             json.dump(config_json, config_file)
-            logging.info('Saved new config to disk.')
+            logging.info('Saved new config to disk: %s' % config_path)
         except HTTPError as http_error:
             logging.error(http_error)
             break
         except Timeout as timeout:
             logging.error(timeout)
             break
+        old_url = url
+        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+        url = inject_variables(config_json['config_endpoint'])
     CONFIG = namedtuple_from_mapping(config_json)
     GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
