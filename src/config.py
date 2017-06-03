@@ -5,11 +5,17 @@ import shutil
 import gettext
 import requests
 import logging
-import gettext_windows
+import platform
 from requests.exceptions import HTTPError
 from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
 from collections import OrderedDict
+
+if 'win' in platform.platform().lower():
+    try:
+        import gettext_windows
+    except:
+        loggin.warning('Cannot import gettext_windows')
 
 CONFIG_DIRNAME = 'Launcher'
 TRANSLATION_DIRNAME = 'i18n'
@@ -37,7 +43,8 @@ if getattr(sys, '_MEIPASS', False):
 else:
     RESOURCE_DIR = os.getcwd()
 
-gettext_windows.setup_env()
+if 'win' in platform.platform().lower():
+    gettext_windows.setup_env()
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
 TRANSLATIONS = gettext.translation(
     'hourai-launcher', TRANSLATION_DIR, fallback=True)

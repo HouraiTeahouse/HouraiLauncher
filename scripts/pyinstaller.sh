@@ -1,4 +1,5 @@
 pyinstaller ./launcher.spec \
   --name launcher \
   --clean \
-  --onefile
+  --onefile \
+  --log-level=DEBUG

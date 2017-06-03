@@ -230,6 +230,8 @@ class MainWindow(QWidget):
             label.setOpenExternalLinks(True)
             label.setText('<a href=%s>%s</a>' % (entry.link, entry.title))
             self.news_view.addRow(QLabel(format_date(entry_date)), label)
+            logging.info('News Item: %s (%s)' % (format_date(entry_date),
+                entry.title))
             count += 1
             if count >= 10:
                 break
@@ -245,6 +247,8 @@ class MainWindow(QWidget):
         self.client_state = ClientState.GAME_STATUS_CHECK
         if not hasattr(sys, 'frozen'):
             logging.info('Not build executable')
+            return
+        if '--test' in sys.argv:
             return
         launcher_hash = sha256_hash(sys.executable)
         logging.info('Launcher Hash: %s' % launcher_hash)
@@ -269,6 +273,7 @@ class MainWindow(QWidget):
             if remote_launcher_hash != sha256_hash(temp_file):
                 logging.error('Downloaded launcher does not match one'
                               ' described by remote hash file.')
+            print('Replacing with new launcher...')
             if os.path.exists(old_file):
                 os.remove(old_file)
             os.rename(sys.executable, old_file)
