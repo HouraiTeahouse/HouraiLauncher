@@ -1,4 +1,5 @@
 import aiohttp
+import aiofiles
 import asyncio
 import hashlib
 import logging
@@ -66,7 +67,7 @@ class Download(object):
             os.makedirs(directory)
         if os.path.isdir(path):
             shutil.rmtree(path)
-        with open(path, 'wb+') as downloaded_file:
+        async with aiofiles.open(path, 'wb+') as downloaded_file:
             async with session.get(self.url) as response:
                 logging.info('Response: %s (%s)' % (response.status, self.url))
                 async for block in response.content.iter_chunked(
@@ -74,7 +75,7 @@ class Download(object):
                     self.downloaded_bytes += len(block)
                     if tracker is not None:
                         loop.call_soon_threadsafe(tracker.update)
-                    downloaded_file.write(block)
+                    await downloaded_file.write(block)
 
 
 class DownloadTracker(object):
@@ -266,13 +267,14 @@ class MainWindow(QWidget):
                 return
             logging.info('Fetching new launcher from: %s' % url)
             temp_file = sys.executable + '.new'
+            logging.info('Fetching new launcher from: %s' % url)
             old_file = sys.executable + '.old'
-            with open(temp_file, 'wb+') as file_handle:
+            async with open(temp_file, 'wb+') as file_handle:
                 async with session.get(url) as response:
                     # TODO(james7132): Check for failure
                     async for data in response.content \
                                               .iter_chunked(CHUNK_SIZE):
-                        file_handle.write(data)
+                        await file_handle.write(data)
             if remote_launcher_hash != sha256_hash(temp_file):
                 logging.error('Downloaded launcher does not match one'
                               ' described by remote hash file.')
