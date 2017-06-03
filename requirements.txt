@@ -1,6 +1,7 @@
 aiohttp==2.0.7
 appdirs==1.4.3
 async-timeout==1.2.1
+Babel==2.4.0
 certifi==2017.4.17
 chardet==3.0.3
 feedparser==5.2.1
@@ -11,6 +12,7 @@ packaging==16.8
 PyInstaller==3.2.1
 pyparsing==2.2.0
 PyQt5==5.8.2
+pytz==2017.2
 Quamash==0.5.5
 requests==2.17.3
 sip==4.19.2
