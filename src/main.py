@@ -20,7 +20,9 @@ if __name__ == '__main__':
     main_window.show()
     try:
         loop.run_until_complete(main_window.main_loop())
+        loop.run_forever()
     except Exception as e:
         logging.exception(e)
+        raise
     finally:
         loop.close()
