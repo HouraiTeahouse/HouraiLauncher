@@ -1,3 +1,4 @@
+import logging
 import os
 from PyQt5 import QtGui, QtCore
 from config import CONFIG, RESOURCE_DIR
@@ -19,6 +20,7 @@ if __name__ == '__main__':
     main_window.show()
     try:
         loop.run_until_complete(main_window.main_loop())
+    except Exception as e:
+        logging.exception(e)
     finally:
-        loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
