@@ -5,7 +5,7 @@ block_cipher = None
 a = Analysis(['src/main.py'],
              pathex=[
               './src',
-              'C:/Python35/Lib/site-packages/PyQt5/Qt/bin'
+              'C:/Python35-x64/Lib/site-packages/PyQt5/Qt/bin'
              ],
              binaries=[],
              datas=[
