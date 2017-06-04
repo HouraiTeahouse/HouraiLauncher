@@ -143,6 +143,7 @@ class Branch(object):
         url_format = self.remote_index['url_format']
         download_bytes = 0
         download_tracker = DownloadTracker(progress_bar)
+        logging.info('Comparing local installation against remote index...')
         for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
@@ -263,6 +264,7 @@ class MainWindow(QWidget):
             count += 1
             if count >= 10:
                 break
+        logging.info('News fetched!')
 
     async def ready(self):
         self.launch_game_btn.setText(_('Launch Game'))
@@ -312,6 +314,7 @@ class MainWindow(QWidget):
             sys.exit(0)
 
     async def game_status_check(self):
+        logging.info('Checking local installation...')
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
@@ -319,6 +322,7 @@ class MainWindow(QWidget):
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
+        logging.info('Local installation check completed.')
         logging.info('Game status check took %s seconds.' % (time.time() -
                                                              start))
         self.client_state = ClientState.GAME_UPDATE_CHECK
@@ -331,9 +335,11 @@ class MainWindow(QWidget):
             'branch': 'develop',
             'platform': platform.system()
         }
+        logging.info('Checking for remote game updates...')
         await asyncio.gather(*[branch.fetch_remote_index(context,
                                                          self.progress_bar)
                                for branch in self.branches.values()])
+        logging.info('Remote game update check completed.')
         self.client_state = ClientState.READY
 
     def init_ui(self):
