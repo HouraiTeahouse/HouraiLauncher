@@ -66,7 +66,8 @@ class Download(object):
         logging.info('Downloading %s from %s...' % (path, self.url))
         with open(path, 'wb+') as downloaded_file:
             response = requests.get(self.url, stream=True)
-            logging.info('Response: %s (%s)' % (response.status_code, self.url))
+            logging.info('Response: %s (%s)' %
+                         (response.status_code, self.url))
             for block in response.iter_content(CHUNK_SIZE):
                 self.downloaded_bytes += len(block)
                 if tracker is not None:
@@ -157,19 +158,25 @@ class Branch(object):
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)
-        with ThreadPoolExecutor() as exec:
+        directories = {os.path.dirname(download.file_path) for download in
+                       download_tracker.downloads}
+        for directory in directories:
+            if not os.path.exists(directory):
+                logging.info('Creating new directory: %s' % directory)
+                os.makedirs(directory)
+        with ThreadPoolExecutor() as executor:
             async with aiohttp.ClientSession() as session:
                 files = list()
                 for download in download_tracker.downloads:
                     path = download.file_path
-                    directory = os.path.dirname(path)
-                    if not os.path.exists(directory):
-                        os.makedirs(directory)
                     if os.path.isdir(path):
+                        logging.info('Delete conflicting directory: %s' %
+                                     path)
                         shutil.rmtree(path)
-                    download_request = loop.run_in_executor(exec,
-                            download.download_file,
-                            session, download_tracker)
+                    download_request = \
+                        loop.run_in_executor(executor,
+                                             download.download_file,
+                                             session, download_tracker)
                     files.append(download_request)
                 await asyncio.gather(*files)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
@@ -316,8 +323,8 @@ class MainWindow(QWidget):
             'platform': platform.system()
         }
         await asyncio.gather(*[branch.fetch_remote_index(context,
-                                                     self.progress_bar)
-                           for branch in self.branches.values()])
+                                                         self.progress_bar)
+                               for branch in self.branches.values()])
         self.client_state = ClientState.READY
 
     def init_ui(self):
