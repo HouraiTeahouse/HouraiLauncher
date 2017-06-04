@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
+import requests
 import feedparser
 import locale
 import itertools
@@ -19,6 +20,7 @@ from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
 from quamash import QThreadExecutor
+from concurrent.futures import ThreadPoolExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import *
@@ -59,23 +61,18 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    async def download_file(self, session, tracker=None):
+    def download_file(self, session, tracker=None):
         path = self.file_path
-        directory = os.path.dirname(path)
         logging.info('Downloading %s from %s...' % (path, self.url))
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        if os.path.isdir(path):
-            shutil.rmtree(path)
-        async with aiofiles.open(path, 'wb+') as downloaded_file:
-            async with session.get(self.url) as response:
-                logging.info('Response: %s (%s)' % (response.status, self.url))
-                async for block in response.content.iter_chunked(
-                        CHUNK_SIZE):
-                    self.downloaded_bytes += len(block)
-                    if tracker is not None:
-                        loop.call_soon_threadsafe(tracker.update)
-                    await downloaded_file.write(block)
+        with open(path, 'wb+') as downloaded_file:
+            response = requests.get(self.url, stream=True)
+            logging.info('Response: %s (%s)' % (response.status_code, self.url))
+            for block in response.iter_content(CHUNK_SIZE):
+                self.downloaded_bytes += len(block)
+                if tracker is not None:
+                    loop.call_soon_threadsafe(tracker.update)
+                downloaded_file.write(block)
+        return response.status_code
 
 
 class DownloadTracker(object):
@@ -150,20 +147,31 @@ class Branch(object):
             download = None
             if filename not in self.files:
                 download = Download(file_path, url, filesize)
-                logging.info('Missing file: %s' % filename)
+                logging.info('Missing file: (%s) %s ' % (filehash, filename))
             elif self.files[filename] != filehash:
                 download = Download(file_path, url, filesize)
-                logging.info('Hash mismatch: %s' % filename,
-                             filehash, self.files[filename])
+                logging.info('Hash mismatch: %s (%s vs %s)' % (filename,
+                             filehash, self.files[filename]))
             else:
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
             if download is not None:
                 download_tracker.downloads.append(download)
         logging.info('Total download size: %s' % download_bytes)
-        async with aiohttp.ClientSession() as session:
-            await asyncio.gather(*[download.download_file(session,
-                                                          download_tracker)
-                                   for download in download_tracker.downloads])
+        with ThreadPoolExecutor() as exec:
+            async with aiohttp.ClientSession() as session:
+                files = list()
+                for download in download_tracker.downloads:
+                    path = download.file_path
+                    directory = os.path.dirname(path)
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    download_request = loop.run_in_executor(exec,
+                            download.download_file,
+                            session, download_tracker)
+                    files.append(download_request)
+                await asyncio.gather(*files)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for _, filename in files:
@@ -210,7 +218,7 @@ class MainWindow(QWidget):
         self.init_ui()
 
     async def main_loop(self):
-        asyncio.ensure_future(self.fetch_news(), loop=loop)
+        asyncio.ensure_future(self.fetch_news())
         while True:
             if self.client_state in self.state_mapping:
                 await self.state_mapping[self.client_state]()
@@ -278,7 +286,6 @@ class MainWindow(QWidget):
             if remote_launcher_hash != sha256_hash(temp_file):
                 logging.error('Downloaded launcher does not match one'
                               ' described by remote hash file.')
-            print('Replacing with new launcher...')
             if os.path.exists(old_file):
                 os.remove(old_file)
             os.rename(sys.executable, old_file)
@@ -309,8 +316,8 @@ class MainWindow(QWidget):
             'platform': platform.system()
         }
         await asyncio.gather(*[branch.fetch_remote_index(context,
-                                                         self.progress_bar)
-                               for branch in self.branches.values()])
+                                                     self.progress_bar)
+                           for branch in self.branches.values()])
         self.client_state = ClientState.READY
 
     def init_ui(self):
