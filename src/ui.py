@@ -74,8 +74,11 @@ class Download(object):
             logging.info('Response: %s (%s)' %
                          (response.status_code, self.url))
             for block in response.iter_content(CHUNK_SIZE):
+                logging.info('Downloaded chunk of (size: %s, %s)' % (len(block),
+                    path))
                 self.downloaded_bytes += len(block)
                 downloaded_file.write(block)
+        logging.info('Done downloading: %s' % path)
         return response.status_code
 
 
