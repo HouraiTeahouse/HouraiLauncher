@@ -65,7 +65,7 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    def download_file(self, session, tracker=None):
+    def download_file(self, session):
         path = self.file_path
         logging.info('Downloading %s from %s...' % (path, self.url))
         with open(path, 'wb+') as downloaded_file:
@@ -74,8 +74,6 @@ class Download(object):
                          (response.status_code, self.url))
             for block in response.iter_content(CHUNK_SIZE):
                 self.downloaded_bytes += len(block)
-                if tracker is not None:
-                    loop.call_soon_threadsafe(tracker.update)
                 downloaded_file.write(block)
         return response.status_code
 
@@ -180,9 +178,12 @@ class Branch(object):
                     download_request = \
                         loop.run_in_executor(executor,
                                              download.download_file,
-                                             session, download_tracker)
+                                             session)
                     files.append(download_request)
-                await asyncio.gather(*files)
+                downloads = asyncio.gather(*files)
+                while not downloads.done():
+                    download_tracker.update()
+                    await asyncio.sleep(0.1)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for _, filename in files:
