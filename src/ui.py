@@ -267,9 +267,9 @@ class MainWindow(QWidget):
                 return
             logging.info('Fetching new launcher from: %s' % url)
             temp_file = sys.executable + '.new'
-            logging.info('Fetching new launcher from: %s' % url)
+            logging.info('Saving new launcher to: %s' % temp_file)
             old_file = sys.executable + '.old'
-            async with open(temp_file, 'wb+') as file_handle:
+            async with aiofiles.open(temp_file, 'wb+') as file_handle:
                 async with session.get(url) as response:
                     # TODO(james7132): Check for failure
                     async for data in response.content \
@@ -282,6 +282,7 @@ class MainWindow(QWidget):
             if os.path.exists(old_file):
                 os.remove(old_file)
             os.rename(sys.executable, old_file)
+            logging.info('Renaming old launcher to: %s' % old_file)
             os.rename(temp_file, sys.executable)
             os.chmod(sys.executable, 0o750)
             subprocess.Popen([sys.executable])
