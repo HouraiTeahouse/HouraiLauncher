@@ -32,6 +32,7 @@ HEIGHT = 480
 THREAD_MULTIPLIER = 5
 CHUNK_SIZE = 1024 * 1024
 
+
 def get_thread_count():
     return multiprocessing.cpu_count() * THREAD_MULTIPLIER
 
