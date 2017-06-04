@@ -1,8 +1,8 @@
 environment:
   matrix:
-    - PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5.2"
-      PYTHON_ARCH: "32"
+    - PYTHON: "C:\\Python35-x64"
+      PYTHON_VERSION: "3.5.3"
+      PYTHON_ARCH: "64"
 platform: x86
 configuration: Release
 init:
@@ -38,7 +38,7 @@ install:
   - cmd: pip freeze
 
   # Build mu using PyInstaller and rename executable with timestamp
-  - cmd: pyinstaller windows_launcher.spec --name launcher --onefile
+  - cmd: pyinstaller windows_launcher.spec --name launcher --onefile --log-level=DEBUG --debug
 
   # Create InnoSetup installers
   # Set InnoSetup path here, because Cython complained about it.
