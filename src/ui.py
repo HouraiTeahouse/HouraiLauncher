@@ -234,7 +234,7 @@ class MainWindow(QWidget):
         self.init_ui()
 
     async def main_loop(self):
-        # asyncio.ensure_future(self.fetch_news())
+        asyncio.ensure_future(self.fetch_news())
         while True:
             if self.client_state in self.state_mapping:
                 await self.state_mapping[self.client_state]()
