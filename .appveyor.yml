@@ -38,7 +38,7 @@ install:
   - cmd: pip freeze
 
   # Build mu using PyInstaller and rename executable with timestamp
-  - cmd: pyinstaller specs/indows_launcher.spec --name launcher --onefile --log-level=DEBUG --debug
+  - cmd: pyinstaller specs/windows_launcher.spec --name launcher --onefile --log-level=DEBUG --debug
   - cmd: pyinstaller specs/windows_launcher_dir.spec --name launcher --onedir --log-level=DEBUG --debug --distpath=dir_dist
 
   # Create InnoSetup installers
