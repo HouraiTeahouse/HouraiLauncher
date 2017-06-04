@@ -21,6 +21,8 @@ if __name__ == '__main__':
     try:
         loop.run_until_complete(main_window.main_loop())
         loop.run_forever()
+    except RuntimeError as e:
+        logging.exception(e)
     except Exception as e:
         logging.exception(e)
         raise
