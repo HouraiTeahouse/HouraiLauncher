@@ -40,7 +40,7 @@ script:
   # Run tests and collect coverage information
   - coverage run --source=src/ -m unittest discover -v -s test
   # Run PyInstaller build
-  - pyinstaller launcher.spec --name launcher --onefile --log-level=DEBUG
+  - pyinstaller specs/launcher.spec --name launcher --onefile --log-level=DEBUG
 deploy:
   - provider: script
     script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN
