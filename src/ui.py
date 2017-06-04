@@ -306,7 +306,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
-        with QThreadExecutor(len(self.branches)) as exec:
+        with ThreadPoolExecutor() as exec:
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
