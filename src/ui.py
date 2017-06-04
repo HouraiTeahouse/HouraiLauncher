@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
+import multiprocessing
 import requests
 import feedparser
 import locale
@@ -20,7 +21,6 @@ from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
 from quamash import QThreadExecutor
-from concurrent.futures import ThreadPoolExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import *
@@ -29,7 +29,11 @@ from PyQt5.QtCore import *
 WIDTH = 640
 HEIGHT = 480
 
+THREAD_MULTIPLIER = 5
 CHUNK_SIZE = 1024 * 1024
+
+def get_thread_count():
+    return multiprocessing.cpu_count() * THREAD_MULTIPLIER
 
 
 def sha256_hash(filepath, block_size=CHUNK_SIZE):
@@ -164,7 +168,7 @@ class Branch(object):
             if not os.path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
                 os.makedirs(directory)
-        with ThreadPoolExecutor() as executor:
+        with QThreadExecutor(get_thread_count()) as executor:
             async with aiohttp.ClientSession() as session:
                 files = list()
                 for download in download_tracker.downloads:
@@ -306,7 +310,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
-        with ThreadPoolExecutor() as exec:
+        with QThreadExecutor(get_thread_count()) as exec:
             await asyncio.gather(*[
                 loop.run_in_executor(exec, lambda: branch.index_directory())
                 for branch in self.branches.values()])
