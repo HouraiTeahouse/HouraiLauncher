@@ -2,16 +2,16 @@
 
 block_cipher = None
 
-a = Analysis(['src/main.py'],
+a = Analysis(['../src/main.py'],
              pathex=[
               './src',
               'C:/Python35-x64/Lib/site-packages/PyQt5/Qt/bin'
              ],
              binaries=[],
              datas=[
-              ('config.json', '.'),
-              ('img/*', 'img'),
-              ('i18n/*', 'i18n'),
+              ('../config.json', '.'),
+              ('../img/*', 'img'),
+              ('../i18n/*', 'i18n')
              ],
              hiddenimports=[
               'config',
@@ -28,12 +28,17 @@ pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
+          exclude_binaries=True,
           name='launcher',
           debug=False,
           strip=False,
           upx=True,
           console=False,
           icon="img/app.ico")
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               strip=False,
+               upx=True,
+               name='launcher')

@@ -2,14 +2,16 @@
 
 block_cipher = None
 
-
-a = Analysis(['src/main.py'],
-             pathex=['./src'],
+a = Analysis(['../src/main.py'],
+             pathex=[
+              './src',
+              'C:/Python35-x64/Lib/site-packages/PyQt5/Qt/bin'
+             ],
              binaries=[],
              datas=[
-              ('config.json', '.'),
-              ('img/*', 'img'),
-              ('i18n/*', 'i18n')
+              ('../config.json', '.'),
+              ('../img/*', 'img'),
+              ('../i18n/*', 'i18n')
              ],
              hiddenimports=[
               'config',
