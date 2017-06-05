@@ -34,6 +34,8 @@ logging.basicConfig(filename=os.path.join(BASE_DIR, 'launcher_log.txt'),
                     filemode='w',
                     level=logging.INFO)
 logging.info('Base Directory: %s' % BASE_DIR)
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
 
 CONFIG_DIR = os.path.join(BASE_DIR, CONFIG_DIRNAME)
 if not os.path.exists(CONFIG_DIR):

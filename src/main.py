@@ -24,6 +24,7 @@ if __name__ == '__main__':
     except RuntimeError as e:
         logging.exception(e)
     except Exception as e:
+        print('Hello')
         logging.exception(e)
         raise
     finally:

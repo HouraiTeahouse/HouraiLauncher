@@ -1,4 +1,3 @@
-import aiohttp
 import aiofiles
 import asyncio
 import hashlib
@@ -14,6 +13,7 @@ import requests
 import feedparser
 import locale
 import itertools
+import threading
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
@@ -58,6 +58,22 @@ def list_files(directory):
             yield full_path, relative_path
 
 
+def download_file(url, path, block_fun=None):
+    logging.info('Downloading %s from %s...' % (path, url))
+    with open(path, 'wb+') as downloaded_file:
+        response = requests.get(url, stream=True)
+        logging.info('Response: %s (%s)' %
+                     (response.status_code, url))
+        for block in response.iter_content(CHUNK_SIZE):
+            logging.info('Downloaded chunk of (size: %s, %s)' %
+                         (len(block), path))
+            if block_fun is not None:
+                block_fun(block)
+            downloaded_file.write(block)
+    logging.info('Done downloading: %s' % path)
+    return response.status_code
+
+
 class Download(object):
 
     def __init__(self, path, url, download_size):
@@ -66,20 +82,12 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    def download_file(self, session):
-        path = self.file_path
-        logging.info('Downloading %s from %s...' % (path, self.url))
-        with open(path, 'wb+') as downloaded_file:
-            response = requests.get(self.url, stream=True)
-            logging.info('Response: %s (%s)' %
-                         (response.status_code, self.url))
-            for block in response.iter_content(CHUNK_SIZE):
-                logging.info('Downloaded chunk of (size: %s, %s)' %
-                             (len(block), path))
-                self.downloaded_bytes += len(block)
-                downloaded_file.write(block)
-        logging.info('Done downloading: %s' % path)
-        return response.status_code
+    def download_file(self):
+        def inc_fun(block):
+            self.downloaded_bytes += len(block)
+        return download_file(self.url, 
+                             self.file_path, 
+                             inc_fun)
 
 
 class DownloadTracker(object):
@@ -130,26 +138,14 @@ class Branch(object):
         subprocess.Popen(args)
         sys.exit()
 
-    async def fetch_remote_index(self, context, progress_bar):
-        branch_context = dict(context)
-        branch_context["branch"] = self.source_branch
-        url = inject_variables(self.config.index_endpoint, branch_context)
-        logging.info('Fetching remote index from %s...' % url)
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                self.remote_index = await response.json()
-        file_downloads = {}
-        branch_context['base_url'] = self.remote_index['base_url']
+    def _diff_files(self, context, download_tracker):
         url_format = self.remote_index['url_format']
-        download_bytes = 0
-        download_tracker = DownloadTracker(progress_bar)
-        logging.info('Comparing local installation against remote index...')
         for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
-            branch_context['filename'] = filename
-            branch_context['filehash'] = filehash
-            url = inject_variables(url_format, branch_context)
+            context['filename'] = filename
+            context['filehash'] = filehash
+            url = inject_variables(url_format, context)
 
             file_path = os.path.join(self.directory, filename)
             download = None
@@ -164,31 +160,47 @@ class Branch(object):
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
             if download is not None:
                 download_tracker.downloads.append(download)
-        logging.info('Total download size: %s' % download_bytes)
+
+    def _preclean_branch_directory(self, download_tracker):
         directories = {os.path.dirname(download.file_path) for download in
                        download_tracker.downloads}
         for directory in directories:
             if not os.path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
                 os.makedirs(directory)
-        with QThreadExecutor(get_thread_count()) as executor:
-            async with aiohttp.ClientSession() as session:
-                files = list()
-                for download in download_tracker.downloads:
-                    path = download.file_path
-                    if os.path.isdir(path):
-                        logging.info('Delete conflicting directory: %s' %
-                                     path)
-                        shutil.rmtree(path)
-                    download_request = \
-                        loop.run_in_executor(executor,
-                                             download.download_file,
-                                             session)
-                    files.append(download_request)
-                downloads = asyncio.gather(*files)
-                while not downloads.done():
-                    download_tracker.update()
-                    await asyncio.sleep(0.1)
+        for download in download_tracker.downloads:
+            path = download.file_path
+            if os.path.isdir(path):
+                logging.info('Delete conflicting directory: %s' %
+                             path)
+                shutil.rmtree(path)
+
+    def fetch_remote_index(self, context, progress_bar, executor):
+        asyncio.set_event_loop(loop)
+        branch_context = dict(context)
+        branch_context["branch"] = self.source_branch
+        url = inject_variables(self.config.index_endpoint, branch_context)
+        logging.info('Fetching remote index from %s...' % url)
+        response = requests.get(url)
+        # TODO(james7132): Do proper error checking
+        self.remote_index = response.json()
+        logging.info('Fetched remote index from %s...' % url)
+        file_downloads = {}
+        branch_context['base_url'] = self.remote_index['base_url']
+        download_tracker = DownloadTracker(progress_bar)
+        logging.info('Comparing local installation against remote index...')
+        self._diff_files(branch_context, download_tracker)
+        logging.info('Total download size: %s' % sum(download.total_size 
+                     for download in download_tracker.downloads))
+        directories = {os.path.dirname(download.file_path) for download in
+                       download_tracker.downloads}
+        self._preclean_branch_directory(download_tracker)
+        downloads = asyncio.gather(*[
+                loop.run_in_executor(executor, download.download_file)
+                for download in download_tracker.downloads])
+        while not downloads.done():
+            loop.call_soon_threadsafe(download_tracker.update)
+            time.sleep(0.1)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for _, filename in files:
@@ -235,22 +247,26 @@ class MainWindow(QWidget):
         self.init_ui()
 
     async def main_loop(self):
-        asyncio.ensure_future(self.fetch_news())
-        while True:
-            if self.client_state in self.state_mapping:
-                await self.state_mapping[self.client_state]()
-            else:
-                await asyncio.sleep(0.1)
+        with QThreadExecutor(get_thread_count()) as self.executor:
+            asyncio.ensure_future(self.fetch_news())
+            while True:
+                if self.client_state in self.state_mapping:
+                    await self.state_mapping[self.client_state]()
+                else:
+                    await asyncio.sleep(0.1)
 
     async def fetch_news(self):
         logging.info('Fetching news!')
         if not hasattr(self.config, 'news_rss_feed'):
             logging.info('No specified news RSS feed. Aborting fetch.')
             return
-        async with aiohttp.ClientSession(loop=loop) as session:
-            async with session.get(self.config.news_rss_feed) as response:
-                rss_content = await response.text()
-        rss_data = feedparser.parse(rss_content)
+        feed_url = inject_variables(self.config.news_rss_feed, self.context)
+        # TODO(james7132): Do proper error checking
+        rss_response = requests.get(feed_url)
+        print(feed_url)
+        print(rss_response)
+        print(rss_response.content)
+        rss_data = feedparser.parse(rss_response.text)
         count = 0
         for entry in rss_data.entries:
             entry_time = datetime.fromtimestamp(mktime(entry.updated_parsed))
@@ -285,43 +301,40 @@ class MainWindow(QWidget):
         url = inject_variables(self.config.launcher_endpoint, self.context)
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
-        async with aiohttp.ClientSession(loop=loop) as session:
-            async with session.get(hash_url) as response:
-                remote_launcher_hash = await response.text()
-                logging.info('Remote launcher hash: %s' % remote_launcher_hash)
-            if remote_launcher_hash == launcher_hash:
-                return
-            logging.info('Fetching new launcher from: %s' % url)
-            temp_file = sys.executable + '.new'
-            logging.info('Saving new launcher to: %s' % temp_file)
-            old_file = sys.executable + '.old'
-            async with aiofiles.open(temp_file, 'wb+') as file_handle:
-                async with session.get(url) as response:
-                    # TODO(james7132): Check for failure
-                    async for data in response.content \
-                                              .iter_chunked(CHUNK_SIZE):
-                        await file_handle.write(data)
-            if remote_launcher_hash != sha256_hash(temp_file):
-                logging.error('Downloaded launcher does not match one'
-                              ' described by remote hash file.')
-            if os.path.exists(old_file):
-                os.remove(old_file)
-            os.rename(sys.executable, old_file)
-            logging.info('Renaming old launcher to: %s' % old_file)
-            os.rename(temp_file, sys.executable)
-            os.chmod(sys.executable, 0o750)
-            subprocess.Popen([sys.executable])
-            sys.exit(0)
+        # TODO(james7132): Do proper error checking
+        response = await loop.run_in_executor(self.executor, 
+                                              request.get, 
+                                              hash_url)
+        remote_launcher_hash = response.text
+        logging.info('Remote launcher hash: %s' % remote_launcher_hash)
+        if remote_launcher_hash == launcher_hash:
+            return
+        logging.info('Fetching new launcher from: %s' % url)
+        temp_file = sys.executable + '.new'
+        logging.info('Saving new launcher to: %s' % temp_file)
+        old_file = sys.executable + '.old'
+        await loop.run_in_executor(self.executor, download_file, url, temp_file)
+        if remote_launcher_hash != sha256_hash(temp_file):
+            logging.error('Downloaded launcher does not match one'
+                          ' described by remote hash file.')
+        if os.path.exists(old_file):
+            os.remove(old_file)
+        os.rename(sys.executable, old_file)
+        logging.info('Renaming old launcher to: %s' % old_file)
+        os.rename(temp_file, sys.executable)
+        os.chmod(sys.executable, 0o750)
+        subprocess.Popen([sys.executable])
+        sys.exit(0)
 
     async def game_status_check(self):
         logging.info('Checking local installation...')
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
         start = time.time()
-        with QThreadExecutor(get_thread_count()) as exec:
-            await asyncio.gather(*[
-                loop.run_in_executor(exec, lambda: branch.index_directory())
-                for branch in self.branches.values()])
+        await asyncio.gather(*[
+            loop.run_in_executor(self.executor, 
+                                 lambda: branch.index_directory())
+            for branch in self.branches.values()])
         logging.info('Local installation check completed.')
         logging.info('Game status check took %s seconds.' % (time.time() -
                                                              start))
@@ -336,8 +349,9 @@ class MainWindow(QWidget):
             'platform': platform.system()
         }
         logging.info('Checking for remote game updates...')
-        await asyncio.gather(*[branch.fetch_remote_index(context,
-                                                         self.progress_bar)
+        await asyncio.gather(*[
+            loop.run_in_executor(self.executor, branch.fetch_remote_index,
+                context, self.progress_bar, self.executor)
                                for branch in self.branches.values()])
         logging.info('Remote game update check completed.')
         self.client_state = ClientState.READY
