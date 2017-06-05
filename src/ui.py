@@ -10,9 +10,6 @@ import time
 import multiprocessing
 import requests
 import feedparser
-import locale
-import itertools
-import threading
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
@@ -57,10 +54,13 @@ def list_files(directory):
             yield full_path, relative_path
 
 
-def download_file(url, path, block_fun=None):
+def download_file(url, path, block_fun=None, session=None):
     logging.info('Downloading %s from %s...' % (path, url))
     with open(path, 'wb+') as downloaded_file:
-        response = requests.get(url, stream=True)
+        if session:
+            response = session.get(url, stream=True)
+        else:
+            response = requests.get(url, stream=True)
         logging.info('Response: %s (%s)' %
                      (response.status_code, url))
         for block in response.iter_content(CHUNK_SIZE):
@@ -81,12 +81,13 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    def download_file(self):
+    def download_file(self, session=None):
         def inc_fun(block):
             self.downloaded_bytes += len(block)
         return download_file(self.url,
                              self.file_path,
-                             inc_fun)
+                             block_fun=inc_fun,
+                             session=session)
 
 
 class DownloadTracker(object):
@@ -95,18 +96,26 @@ class DownloadTracker(object):
         self.downloads = []
         self.progress_bar = progress_bar
 
+    def __iter__(self):
+        return self.downloads.__iter__()
+
+    @property
+    def total_size(self):
+        return sum(download.total_size for download in self)
+
+    @property
+    def downloaded_bytes(self):
+        return sum(download.downloaded_bytes for download in self)
+
     def update(self):
         if self.progress_bar is None:
             return
-        total_download_size = sum(download.total_size for download in
-                                  self.downloads)
-        total_downloaded_bytes = sum(download.downloaded_bytes for download in
-                                     self.downloads)
-        if total_download_size <= 0:
+        download_size = self.total_size
+        if download_size <= 0:
             return
         self.progress_bar.setMinimum(0)
-        self.progress_bar.setMaximum(total_download_size)
-        self.progress_bar.setValue(total_downloaded_bytes)
+        self.progress_bar.setMaximum(download_size)
+        self.progress_bar.setValue(self.downloaded_bytes)
 
 
 class Branch(object):
@@ -161,13 +170,13 @@ class Branch(object):
                 download_tracker.downloads.append(download)
 
     def _preclean_branch_directory(self, download_tracker):
-        directories = {os.path.dirname(download.file_path) for download in
-                       download_tracker.downloads}
+        directories = set(os.path.dirname(download.file_path) for download in
+                       download_tracker)
         for directory in directories:
             if not os.path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
                 os.makedirs(directory)
-        for download in download_tracker.downloads:
+        for download in download_tracker:
             path = download.file_path
             if os.path.isdir(path):
                 logging.info('Delete conflicting directory: %s' %
@@ -189,22 +198,23 @@ class Branch(object):
         download_tracker = DownloadTracker(progress_bar)
         logging.info('Comparing local installation against remote index...')
         self._diff_files(branch_context, download_tracker)
-        logging.info('Total download size: %s' % sum(download.total_size
-                     for download in download_tracker.downloads))
-        directories = {os.path.dirname(download.file_path) for download in
-                       download_tracker.downloads}
+        logging.info('Total download size: %s' % download_tracker.total_size)
+        directories = {os.path.dirname(download.file_path)
+                       for download in download_tracker}
         self._preclean_branch_directory(download_tracker)
-        downloads = asyncio.gather(*[
-                loop.run_in_executor(executor, download.download_file)
-                for download in download_tracker.downloads])
-        while not downloads.done():
-            loop.call_soon_threadsafe(download_tracker.update)
-            time.sleep(0.1)
+        with requests.Session() as session:
+            downloads = asyncio.gather(*[
+                    loop.run_in_executor(executor, download.download_file,
+                                         session)
+                    for download in download_tracker])
+            while not downloads.done():
+                loop.call_soon_threadsafe(download_tracker.update)
+                time.sleep(0.1)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for fullpath, filename in files:
             logging.info('Removing extra file: %s' % filename)
-            os.path.remove(fullpath)
+            os.remove(fullpath)
 
 
 class ClientState(Enum):
