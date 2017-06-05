@@ -293,7 +293,7 @@ class MainWindow(QWidget):
             entry_date = entry_time.date()
             label = QLabel()
             label.setOpenExternalLinks(True)
-            label.setText('<a href=%s>%s</a>' % (entry.link, entry.title))
+            label.setText('<a href="%s">%s</a>' % (entry.link, entry.title))
             self.news_view.addRow(QLabel(format_date(entry_date)), label)
             logging.info('News Item: %s (%s)' %
                          (format_date(entry_date), entry.title))
