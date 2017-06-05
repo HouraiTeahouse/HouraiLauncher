@@ -41,6 +41,21 @@ documentation
   // The logo image for the game
   "logo": "img/logo.png",
 
+  // Required: Index endpoint for the game, see format below. Used to describe game
+  // files
+  "index_endpoint": "https://patch.houraiteahouse.net/{project}/{branch}/{platform}/index.json",
+
+  // HTTP Endpoint for fetching updated configurations
+  "config_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/config.json",
+
+  // HTTP Endpoint for fetching updated launchers
+  // NOTE: Expects a text file at https://<endpoint>.hash with the file hash for
+  // to efficiently check for updates
+  "launcher_endpoint": "https://patch.houraiteahouse.net/{project}/launcher/{platform}/{executable}",
+
+  // Optional: RSS/Atom feed for displaying news.
+  "news_rss_feed": "https://www.reddit.com/r/touhou.rss",
+
   // The platform dependent name of the game binary to launch after checking for
   // updates
   "game_binary": {
