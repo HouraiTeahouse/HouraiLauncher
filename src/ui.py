@@ -54,8 +54,13 @@ def list_files(directory):
             yield full_path, relative_path
 
 
-def download_file(url, path, block_fun=None, session=None):
+def download_file(url,
+                  path,
+                  block_fun=None,
+                  session=None,
+                  filehash=None):
     logging.info('Downloading %s from %s...' % (path, url))
+    hasher = hashlib.sha256()
     with open(path, 'wb+') as downloaded_file:
         if session:
             response = session.get(url, stream=True)
@@ -69,6 +74,12 @@ def download_file(url, path, block_fun=None, session=None):
             if block_fun is not None:
                 block_fun(block)
             downloaded_file.write(block)
+            hasher.update(block)
+    download_hash = hasher.hexdigest()
+    if filehash is not None and download_hash != filehash:
+        logging.error('File downoad hash mismatch: (%s) \n'
+                      '   Expected: %s \n'
+                      '   Actual: %s' % (path, filehash, download_hash))
     logging.info('Done downloading: %s' % path)
     return response.status_code
 
@@ -170,8 +181,8 @@ class Branch(object):
                 download_tracker.downloads.append(download)
 
     def _preclean_branch_directory(self, download_tracker):
-        directories = set(os.path.dirname(download.file_path) for download in
-                       download_tracker)
+        directories = set(os.path.dirname(download.file_path)
+                          for download in download_tracker)
         for directory in directories:
             if not os.path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
