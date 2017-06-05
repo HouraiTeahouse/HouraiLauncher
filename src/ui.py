@@ -1,4 +1,3 @@
-import aiofiles
 import asyncio
 import hashlib
 import logging
@@ -85,8 +84,8 @@ class Download(object):
     def download_file(self):
         def inc_fun(block):
             self.downloaded_bytes += len(block)
-        return download_file(self.url, 
-                             self.file_path, 
+        return download_file(self.url,
+                             self.file_path,
                              inc_fun)
 
 
@@ -190,7 +189,7 @@ class Branch(object):
         download_tracker = DownloadTracker(progress_bar)
         logging.info('Comparing local installation against remote index...')
         self._diff_files(branch_context, download_tracker)
-        logging.info('Total download size: %s' % sum(download.total_size 
+        logging.info('Total download size: %s' % sum(download.total_size
                      for download in download_tracker.downloads))
         directories = {os.path.dirname(download.file_path) for download in
                        download_tracker.downloads}
@@ -262,10 +261,10 @@ class MainWindow(QWidget):
             return
         feed_url = inject_variables(self.config.news_rss_feed, self.context)
         # TODO(james7132): Do proper error checking
-        rss_response = requests.get(feed_url)
-        print(feed_url)
-        print(rss_response)
-        print(rss_response.content)
+        rss_response = requests.get(feed_url,
+                                    headers={
+                                        'User-Agent': 'HouraiLauncher 0.1.0'
+                                    })
         rss_data = feedparser.parse(rss_response.text)
         count = 0
         for entry in rss_data.entries:
@@ -302,8 +301,8 @@ class MainWindow(QWidget):
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
         # TODO(james7132): Do proper error checking
-        response = await loop.run_in_executor(self.executor, 
-                                              request.get, 
+        response = await loop.run_in_executor(self.executor,
+                                              request.get,
                                               hash_url)
         remote_launcher_hash = response.text
         logging.info('Remote launcher hash: %s' % remote_launcher_hash)
@@ -313,7 +312,9 @@ class MainWindow(QWidget):
         temp_file = sys.executable + '.new'
         logging.info('Saving new launcher to: %s' % temp_file)
         old_file = sys.executable + '.old'
-        await loop.run_in_executor(self.executor, download_file, url, temp_file)
+        await loop.run_in_executor(self.executor,
+                                   download_file,
+                                   url, temp_file)
         if remote_launcher_hash != sha256_hash(temp_file):
             logging.error('Downloaded launcher does not match one'
                           ' described by remote hash file.')
@@ -332,7 +333,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setEnabled(False)
         start = time.time()
         await asyncio.gather(*[
-            loop.run_in_executor(self.executor, 
+            loop.run_in_executor(self.executor,
                                  lambda: branch.index_directory())
             for branch in self.branches.values()])
         logging.info('Local installation check completed.')
@@ -349,10 +350,12 @@ class MainWindow(QWidget):
             'platform': platform.system()
         }
         logging.info('Checking for remote game updates...')
-        await asyncio.gather(*[
-            loop.run_in_executor(self.executor, branch.fetch_remote_index,
-                context, self.progress_bar, self.executor)
-                               for branch in self.branches.values()])
+        downloads = [loop.run_in_executor(self.executor,
+                                          branch.fetch_remote_index,
+                                          context, self.progress_bar,
+                                          self.executor)
+                     for branch in self.branches.values()]
+        await asyncio.gather(*downloads)
         logging.info('Remote game update check completed.')
         self.client_state = ClientState.READY
 
