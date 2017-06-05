@@ -66,28 +66,42 @@ documentation
 ## Update Payloads
 
 This patcher expects a JSON payload from the specified `index_endpoint` in the
-following format: ```javascript { // The last time the game was updated
-"last_updated": 1495329322
+following format:
+```javascript
+{
+  // The last time the game was updated
+  "last_updated": 1495329322
 
-// The base download URL for the game files. "base_url":
-"https://patch.houraiteahouse.net"
+  // The base download URL for the game files.
+  "base_url": "https://patch.houraiteahouse.net"
 
-// The format for building the // {base} => base_url as described above //
-{project} => URL-safe encoded project name // {branch} => The source control
-branch associated with the build. // {filepath} => The path of the file relative
-to the root folder // {filehash} => The SHA-256 hash of the file "url_format":
-"{base}/{project}/{branch}/{filename}_{filehash}",
+  // The name of the project
+  "project": "fantasy-crescendo",
 
-// A set of all files me "files": { // Keys are the relative path to the root
-folder. // This file list is flat. "fc.exe": { // The file's SHA-256 hash
-"sha256": "341c76ab4124d205ea796850984d042aefae420226f5017983fab00e435d746e",
+  // The source control branch to target
+  "branch": "master",
+
+  // The target platform
+  "platform": "Windows",
+
+  // The format for building the
+  // {base} => base_url as described above
+  // {project} => URL-safe encoded project name
+  // {branch} => The source control branch associated with the build.
+  // {filepath} => The path of the file relative to the root folder
+  // {filehash} => The SHA-256 hash of the file
+  "url_format": "{base}/{project}/{branch}/{filename}_{filehash}",
+
+  // A set of all files
+  "files": {
+    // Keys are the relative path to the root folder. This file list is flat.
+    "fc.exe": {
+      // The file's SHA-256 hash
+      "sha256": "341c76ab4124d205ea796850984d042aefae420226f5017983fab00e435d746e",
 
       // The size of the file in bytes.
       "size": 77723722
     }
-
-},
-
-"directories": { "fc_Data": { // The action to perform when updating // Can be a
-list of actions // Availble Actions: // clean => Deletes all files not describe
-by a prior step. "action": "clean" } } } ```
+  }
+}
+```
