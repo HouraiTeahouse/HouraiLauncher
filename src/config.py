@@ -6,6 +6,7 @@ import gettext
 import requests
 import logging
 import platform
+from logging.handlers import RotatingFileHandler
 from requests.exceptions import HTTPError
 from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
@@ -29,10 +30,12 @@ if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
 else:
     BASE_DIR = os.getcwd()
-
-logging.basicConfig(filename=os.path.join(BASE_DIR, 'launcher_log.txt'),
-                    filemode='w',
-                    level=logging.INFO)
+log_handler = RotatingFileHandler(os.path.join(BASE_DIR, 'launcher_log.txt'),
+                                  backupCount=5)
+log_handler.doRollover()
+root_logger = logging.getLogger()
+root_logger.addHandler(log_handler)
+root_logger.setLevel(logging.INFO)
 logging.info('Base Directory: %s' % BASE_DIR)
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.DEBUG)
