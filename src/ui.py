@@ -202,8 +202,9 @@ class Branch(object):
             time.sleep(0.1)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
-        for _, filename in files:
-            logging.info('Extra file', filename)
+        for fullpath, filename in files:
+            logging.info('Removing extra file: %s' % filename)
+            os.path.remove(fullpath)
 
 
 class ClientState(Enum):
