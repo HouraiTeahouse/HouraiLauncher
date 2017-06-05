@@ -133,7 +133,7 @@ class Branch(object):
         binary_path = os.path.join(self.directory, game_binary)
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
-        logging.info("Command:", ' '.join(args))
+        logging.info('Command: %s' % ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
 
@@ -312,12 +312,21 @@ class MainWindow(QWidget):
         temp_file = sys.executable + '.new'
         logging.info('Saving new launcher to: %s' % temp_file)
         old_file = sys.executable + '.old'
-        await loop.run_in_executor(self.executor,
-                                   download_file,
-                                   url, temp_file)
+        download_tracker = DownloadTracker(self.progress_bar)
+        download = Download(temp_file, url, os.path.getsize(sys.executable))
+        download_tracker.downloads.append(download)
+        download_future = loop.run_in_executor(self.executor,
+                download.download_file)
+        self.launch_game_btn.setText(_('Updating Launcher'))
+        self.launch_game_btn.show()
+        self.progress_bar.show()
+        while not download_future.done():
+            download_tracker.update()
+            await asyncio.sleep(0.1)
         if remote_launcher_hash != sha256_hash(temp_file):
             logging.error('Downloaded launcher does not match one'
                           ' described by remote hash file.')
+        self.launch_game_btn.setText(_('Restarting launcher...'))
         if os.path.exists(old_file):
             os.remove(old_file)
         os.rename(sys.executable, old_file)
@@ -391,8 +400,8 @@ class MainWindow(QWidget):
         default_layout.addLayout(self.news_view)
         default_layout.addStretch(1)
         default_layout.addWidget(self.branch_box)
-        default_layout.addWidget(self.launch_game_btn)
         default_layout.addWidget(self.progress_bar)
+        default_layout.addWidget(self.launch_game_btn)
 
         self.setLayout(default_layout)
 
@@ -402,6 +411,7 @@ class MainWindow(QWidget):
 
     def launch_game(self):
         logging.info('Launching game...')
+        self.launch_game_btn.setText(_('Launching game...'))
         self.launch_game_btn.setEnabled(False)
         system = platform.system()
         binary = self.config.game_binary[system]
