@@ -73,26 +73,29 @@ with open(config_path, 'r+') as config_file:
 
     old_url = None
     GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
-    url = inject_variables(config_json['config_endpoint'])
-    while old_url != url and 'config_endpoint' in config_json:
-        logging.info('Loading remote config from %s' % url)
-        try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            config_json = response.json()
-            logging.info('Fetched new config from %s.' % url)
-            config_file.seek(0)
-            config_file.truncate()
-            json.dump(config_json, config_file)
-            logging.info('Saved new config to disk: %s' % config_path)
-        except HTTPError as http_error:
-            logging.error(http_error)
-            break
-        except Timeout as timeout:
-            logging.error(timeout)
-            break
-        old_url = url
-        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+    if 'config_endpoint' in config_json:
         url = inject_variables(config_json['config_endpoint'])
+        while old_url != url:
+            logging.info('Loading remote config from %s' % url)
+            try:
+                response = requests.get(url, timeout=5)
+                response.raise_for_status()
+                config_json = response.json()
+                logging.info('Fetched new config from %s.' % url)
+                config_file.seek(0)
+                config_file.truncate()
+                json.dump(config_json, config_file)
+                logging.info('Saved new config to disk: %s' % config_path)
+            except HTTPError as http_error:
+                logging.error(http_error)
+                break
+            except Timeout as timeout:
+                logging.error(timeout)
+                break
+            old_url = url
+            GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+            url = inject_variables(config_json['config_endpoint'])
+            if 'config_endpoint' not in config_json:
+                break
     CONFIG = namedtuple_from_mapping(config_json)
     GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
