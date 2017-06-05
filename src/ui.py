@@ -302,7 +302,7 @@ class MainWindow(QWidget):
         logging.info('Fetching remote hash from: %s' % hash_url)
         # TODO(james7132): Do proper error checking
         response = await loop.run_in_executor(self.executor,
-                                              request.get,
+                                              requests.get,
                                               hash_url)
         remote_launcher_hash = response.text
         logging.info('Remote launcher hash: %s' % remote_launcher_hash)
