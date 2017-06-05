@@ -1,4 +1,4 @@
-pyinstaller ./launcher.spec \
+pyinstaller ./specs/launcher.spec \
   --name launcher \
   --clean \
   --onefile \
