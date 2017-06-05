@@ -34,14 +34,14 @@ def get_thread_count():
 
 
 def sha256_hash(filepath, block_size=CHUNK_SIZE):
-    hash = hashlib.sha256()
+    hasher = hashlib.sha256()
     with open(filepath, 'rb') as hash_file:
         buf = hash_file.read(block_size)
         while len(buf) > 0:
-            hash.update(buf)
+            hasher.update(buf)
             buf = hash_file.read(block_size)
     logging.info('File hash: %s (%s)' % (hash.hexdigest(), filepath))
-    return hash.hexdigest()
+    return hasher.hexdigest()
 
 
 def list_files(directory):
@@ -190,8 +190,7 @@ class Branch(object):
         for download in download_tracker:
             path = download.file_path
             if os.path.isdir(path):
-                logging.info('Delete conflicting directory: %s' %
-                             path)
+                logging.info('Delete conflicting directory: %s' % path)
                 shutil.rmtree(path)
 
     def fetch_remote_index(self, context, progress_bar, executor):
@@ -315,7 +314,8 @@ class MainWindow(QWidget):
         if not hasattr(sys, 'frozen'):
             logging.info('Not build executable')
             return
-        if '--test' in sys.argv:
+        if '--test' in sys.argv or not hasattr(self.config,
+                                               'launcher_endpoint'):
             return
         launcher_hash = sha256_hash(sys.executable)
         logging.info('Launcher Hash: %s' % launcher_hash)
