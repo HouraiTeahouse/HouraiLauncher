@@ -317,7 +317,7 @@ class MainWindow(QWidget):
         download = Download(temp_file, url, os.path.getsize(sys.executable))
         download_tracker.downloads.append(download)
         download_future = loop.run_in_executor(self.executor,
-                download.download_file)
+                                               download.download_file)
         self.launch_game_btn.setText(_('Updating Launcher'))
         self.launch_game_btn.show()
         self.progress_bar.show()
