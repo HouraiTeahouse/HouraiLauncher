@@ -10,6 +10,8 @@ import time
 import multiprocessing
 import requests
 import feedparser
+import os.path as path
+from downloads import DownloadTracker
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
@@ -29,10 +31,6 @@ THREAD_MULTIPLIER = 5
 CHUNK_SIZE = 1024 * 1024
 
 
-def get_thread_count():
-    return multiprocessing.cpu_count() * THREAD_MULTIPLIER
-
-
 def sha256_hash(filepath, block_size=CHUNK_SIZE):
     hasher = hashlib.sha256()
     with open(filepath, 'rb') as hash_file:
@@ -45,88 +43,13 @@ def sha256_hash(filepath, block_size=CHUNK_SIZE):
 
 
 def list_files(directory):
-    replacement = directory + os.path.sep
+    replacement = directory + path.sep
     for directory, _, files in os.walk(directory):
         for file in files:
-            full_path = os.path.join(directory, file)
+            full_path = path.join(directory, file)
             relative_path = full_path.replace(replacement,
-                                              '').replace(os.path.sep, '/')
+                                              '').replace(path.sep, '/')
             yield full_path, relative_path
-
-
-def download_file(url,
-                  path,
-                  block_fun=None,
-                  session=None,
-                  filehash=None):
-    logging.info('Downloading %s from %s...' % (path, url))
-    hasher = hashlib.sha256()
-    with open(path, 'wb+') as downloaded_file:
-        if session:
-            response = session.get(url, stream=True)
-        else:
-            response = requests.get(url, stream=True)
-        logging.info('Response: %s (%s)' %
-                     (response.status_code, url))
-        for block in response.iter_content(CHUNK_SIZE):
-            logging.info('Downloaded chunk of (size: %s, %s)' %
-                         (len(block), path))
-            if block_fun is not None:
-                block_fun(block)
-            downloaded_file.write(block)
-            hasher.update(block)
-    download_hash = hasher.hexdigest()
-    if filehash is not None and download_hash != filehash:
-        logging.error('File downoad hash mismatch: (%s) \n'
-                      '   Expected: %s \n'
-                      '   Actual: %s' % (path, filehash, download_hash))
-    logging.info('Done downloading: %s' % path)
-    return response.status_code
-
-
-class Download(object):
-
-    def __init__(self, path, url, download_size):
-        self.url = url
-        self.file_path = path
-        self.total_size = download_size
-        self.downloaded_bytes = 0
-
-    def download_file(self, session=None):
-        def inc_fun(block):
-            self.downloaded_bytes += len(block)
-        return download_file(self.url,
-                             self.file_path,
-                             block_fun=inc_fun,
-                             session=session)
-
-
-class DownloadTracker(object):
-
-    def __init__(self, progress_bar):
-        self.downloads = []
-        self.progress_bar = progress_bar
-
-    def __iter__(self):
-        return self.downloads.__iter__()
-
-    @property
-    def total_size(self):
-        return sum(download.total_size for download in self)
-
-    @property
-    def downloaded_bytes(self):
-        return sum(download.downloaded_bytes for download in self)
-
-    def update(self):
-        if self.progress_bar is None:
-            return
-        download_size = self.total_size
-        if download_size <= 0:
-            return
-        self.progress_bar.setMinimum(0)
-        self.progress_bar.setMaximum(download_size)
-        self.progress_bar.setValue(self.downloaded_bytes)
 
 
 class Branch(object):
@@ -134,15 +57,14 @@ class Branch(object):
     def __init__(self, name, source_branch, config):
         self.name = name
         self.source_branch = source_branch
-        self.directory = os.path.join(BASE_DIR, name)
+        self.directory = path.join(BASE_DIR, name)
         self.is_indexed = False
         self.last_fetched = None
         self.config = config
         self.files = {}
-        self.remote_index = {}
 
     def index_directory(self):
-        if not os.path.exists(self.directory):
+        if not path.exists(self.directory):
             self.is_indexed = True
             return
         self.files = {relative: sha256_hash(full) for full, relative, in
@@ -150,50 +72,56 @@ class Branch(object):
         self.is_indexed = True
 
     def launch_game(self, game_binary, command_args):
-        binary_path = os.path.join(self.directory, game_binary)
+        binary_path = path.join(self.directory, game_binary)
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
         logging.info('Command: %s' % ' '.join(args))
         subprocess.Popen(args)
         sys.exit()
 
-    def _diff_files(self, context, download_tracker):
-        url_format = self.remote_index['url_format']
-        for filename, filedata in self.remote_index['files'].items():
+    def _diff_files(self,
+                    context,
+                    download_tracker,
+                    remote_index,
+                    session=None):
+        url_format = remote_index['url_format']
+        download_futures = list()
+        for filename, filedata in remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
             context['filename'] = filename
             context['filehash'] = filehash
             url = inject_variables(url_format, context)
 
-            file_path = os.path.join(self.directory, filename)
-            download = None
+            file_path = path.join(self.directory, filename)
+            download = False
             if filename not in self.files:
-                download = Download(file_path, url, filesize)
+                download = True
                 logging.info('Missing file: (%s) %s ' % (filehash, filename))
             elif self.files[filename] != filehash:
-                download = Download(file_path, url, filesize)
+                download = True
                 logging.info('Hash mismatch: %s (%s vs %s)' % (filename,
                              filehash, self.files[filename]))
             else:
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
-            if download is not None:
-                download_tracker.downloads.append(download)
+            if download:
+                download_tracker.download_file(
+                    file_path, url, filesize, session=session)
 
     def _preclean_branch_directory(self, download_tracker):
-        directories = set(os.path.dirname(download.file_path)
+        directories = set(path.dirname(download.file_path)
                           for download in download_tracker)
         for directory in directories:
-            if not os.path.exists(directory):
+            if not path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
                 os.makedirs(directory)
         for download in download_tracker:
             path = download.file_path
-            if os.path.isdir(path):
+            if path.isdir(path):
                 logging.info('Delete conflicting directory: %s' % path)
                 shutil.rmtree(path)
 
-    def fetch_remote_index(self, context, progress_bar, executor):
+    def fetch_remote_index(self, context, download_tracker, executor):
         asyncio.set_event_loop(loop)
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
@@ -201,26 +129,18 @@ class Branch(object):
         logging.info('Fetching remote index from %s...' % url)
         response = requests.get(url)
         # TODO(james7132): Do proper error checking
-        self.remote_index = response.json()
+        remote_index = response.json()
         logging.info('Fetched remote index from %s...' % url)
-        file_downloads = {}
-        branch_context['base_url'] = self.remote_index['base_url']
-        download_tracker = DownloadTracker(progress_bar)
-        logging.info('Comparing local installation against remote index...')
-        self._diff_files(branch_context, download_tracker)
-        logging.info('Total download size: %s' % download_tracker.total_size)
-        directories = {os.path.dirname(download.file_path)
-                       for download in download_tracker}
-        self._preclean_branch_directory(download_tracker)
+        branch_context['base_url'] = remote_index['base_url']
         with requests.Session() as session:
-            downloads = asyncio.gather(*[
-                    loop.run_in_executor(executor, download.download_file,
-                                         session)
-                    for download in download_tracker])
-            while not downloads.done():
-                loop.call_soon_threadsafe(download_tracker.update)
-                time.sleep(0.1)
-        files = filter(lambda f: f[1] not in self.remote_index['files'],
+            logging.info(
+                'Comparing local installation against remote index...')
+            self._diff_files(branch_context, download_tracker, remote_index, session)
+            logging.info(
+                'Total download size: %s' % download_tracker.total_size)
+            self._preclean_branch_directory(download_tracker)
+            download_tracker.run()
+        files = filter(lambda f: f[1] not in remote_index['files'],
                        list_files(self.directory))
         for fullpath, filename in files:
             logging.info('Removing extra file: %s' % filename)
@@ -255,23 +175,29 @@ class MainWindow(QWidget):
             for branch, name in branches.items()
         }
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
-        self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.branch = next(iter(self.config.branches.values()))
         self.context = dict(GLOBAL_CONTEXT)
-        self.state_mapping = {
+        self.context.update({
+            'project': sanitize_url(self.config.project),
+            'branch': 'develop',
+        })
+        self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
+        self.init_ui()
+
+    async def main_loop(self):
+        state_mapping = {
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
             ClientState.GAME_UPDATE_CHECK: self.game_update_check,
             ClientState.READY: self.ready
         }
-        self.init_ui()
-
-    async def main_loop(self):
-        with QThreadExecutor(get_thread_count()) as self.executor:
+        thread_count = multiprocessing.cpu_count() * THREAD_MULTIPLIER
+        with QThreadExecutor(thread_count) as self.executor:
+            self.download_tracker.executor = executor
             asyncio.ensure_future(self.fetch_news())
             while True:
-                if self.client_state in self.state_mapping:
-                    await self.state_mapping[self.client_state]()
+                if self.client_state in state_mapping:
+                    await state_mapping[self.client_state]()
                 else:
                     await asyncio.sleep(0.1)
 
@@ -280,7 +206,7 @@ class MainWindow(QWidget):
         if not hasattr(self.config, 'news_rss_feed'):
             logging.info('No specified news RSS feed. Aborting fetch.')
             return
-        feed_url = inject_variables(self.config.news_rss_feed, self.context)
+        feed_url = self.build_path(self.config.news_rss_feed)
         # TODO(james7132): Do proper error checking
         rss_response = requests.get(feed_url,
                                     headers={
@@ -302,6 +228,9 @@ class MainWindow(QWidget):
                 break
         logging.info('News fetched!')
 
+    def build_path(self, path, context=self.context):
+        return inject_variables(path, context)
+
     async def ready(self):
         self.launch_game_btn.setText(_('Launch Game'))
         self.launch_game_btn.setEnabled(True)
@@ -319,7 +248,7 @@ class MainWindow(QWidget):
             return
         launcher_hash = sha256_hash(sys.executable)
         logging.info('Launcher Hash: %s' % launcher_hash)
-        url = inject_variables(self.config.launcher_endpoint, self.context)
+        url = self.build_path(self.config.launcher_endpoint)
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
         # TODO(james7132): Do proper error checking
@@ -334,22 +263,18 @@ class MainWindow(QWidget):
         temp_file = sys.executable + '.new'
         logging.info('Saving new launcher to: %s' % temp_file)
         old_file = sys.executable + '.old'
-        download_tracker = DownloadTracker(self.progress_bar)
-        download = Download(temp_file, url, os.path.getsize(sys.executable))
-        download_tracker.downloads.append(download)
-        download_future = loop.run_in_executor(self.executor,
-                                               download.download_file)
+        self.download_tracker.clear()
+        self.download_tracker.download_file(
+            temp_file, url, path.getsize(sys.executable))
         self.launch_game_btn.setText(_('Updating Launcher'))
         self.launch_game_btn.show()
         self.progress_bar.show()
-        while not download_future.done():
-            download_tracker.update()
-            await asyncio.sleep(0.1)
+        await download_tracker.run_async()
         if remote_launcher_hash != sha256_hash(temp_file):
             logging.error('Downloaded launcher does not match one'
                           ' described by remote hash file.')
         self.launch_game_btn.setText(_('Restarting launcher...'))
-        if os.path.exists(old_file):
+        if path.exists(old_file):
             os.remove(old_file)
         os.rename(sys.executable, old_file)
         logging.info('Renaming old launcher to: %s' % old_file)
@@ -364,8 +289,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setEnabled(False)
         start = time.time()
         await asyncio.gather(*[
-            loop.run_in_executor(self.executor,
-                                 lambda: branch.index_directory())
+            loop.run_in_executor(self.executor, branch.index_directory)
             for branch in self.branches.values()])
         logging.info('Local installation check completed.')
         logging.info('Game status check took %s seconds.' % (time.time() -
@@ -375,15 +299,10 @@ class MainWindow(QWidget):
     async def game_update_check(self):
         self.launch_game_btn.hide()
         self.progress_bar.show()
-        context = {
-            'project': sanitize_url(self.config.project),
-            'branch': 'develop',
-            'platform': platform.system()
-        }
         logging.info('Checking for remote game updates...')
         downloads = [loop.run_in_executor(self.executor,
                                           branch.fetch_remote_index,
-                                          context, self.progress_bar,
+                                          self.context, self.progress_bar,
                                           self.executor)
                      for branch in self.branches.values()]
         await asyncio.gather(*downloads)
@@ -407,10 +326,11 @@ class MainWindow(QWidget):
 
         self.progress_bar = QProgressBar()
         self.progress_bar.hide()
+        self.download_tracker = DownloadTracker(self.progress_bar)
 
         self.launch_game_btn.clicked.connect(self.launch_game)
 
-        logo = QPixmap(os.path.join(RESOURCE_DIR, self.config.logo))
+        logo = QPixmap(path.join(RESOURCE_DIR, self.config.logo))
         logo = logo.scaledToWidth(WIDTH)
         logo_label = QLabel()
         logo_label.setPixmap(logo)
