@@ -1,5 +1,8 @@
+import asyncio
 import hashlib
 import logging
+import time
+from config import CHUNK_SIZE
 
 def download_file(url,
                   path,
@@ -54,7 +57,7 @@ class DownloadTracker(object):
         self.downloads = []
         self.download_futures = []
         self.progress_bar = progress_bar
-        self._executor = executor
+        self.executor = executor
 
     def __iter__(self):
         return self.downloads.__iter__()
@@ -67,21 +70,12 @@ class DownloadTracker(object):
     def downloaded_bytes(self):
         return sum(download.downloaded_bytes for download in self)
 
-    @property
-    def executor(self):
-        return self._executor
-
     def clear(self):
         self.downloads.clear()
         self.download_futures.clear()
 
-    def download_file(self, path, url, filesize, session=None):
-        download = Download(path, url, filesize)
-        self.downloads.append(download)
-        future = asyncio.get_event_loop().run_in_executor(
-            self.executor, download.download_file, session)
-        self.download_futures.append(future)
-        return future
+    def add_download(self, *args):
+        self.downloads.append(Download(*args))
 
     def update(self):
         if self.progress_bar is None:
@@ -93,16 +87,21 @@ class DownloadTracker(object):
         self.progress_bar.setMaximum(download_size)
         self.progress_bar.setValue(self.downloaded_bytes)
 
-    def run(self):
-        all_downloads = asyncio.gather(*self.download_futures)
+    def _execute_requests(self, loop, session=None):
+        return asyncio.gather(*[loop.run_in_executor(
+            self.executor, download.download_file, session)
+            for download in self.downloads])
+
+    def run(self, session=None):
         loop = asyncio.get_event_loop()
+        all_downloads = self._execute_requests(loop, session=session)
         while not all_downloads.done():
-            loop.call_soon_threadsafe(download_tracker.update)
+            loop.call_soon_threadsafe(self.update)
             time.sleep(0.1)
 
-    async def run_async(self):
-        all_downloads = asyncio.gather(*self.download_futures)
+    async def run_async(self, session=None):
         loop = asyncio.get_event_loop()
+        all_downloads = self._execute_requests(loop, session=session)
         while not all_downloads.done():
-            loop..call_soon_threadsafe(download_tracker.update)
+            loop.call_soon_threadsafe(self.update)
             await asyncio.sleep(0.1)
