@@ -1,7 +1,28 @@
 import collections
+import logging
+import hashlib
+import os
+
+CHUNK_SIZE = 1024 * 1024
 
 
-__author__ = 'github.com/hangtwenty'
+def sha256_hash(filepath, block_size=CHUNK_SIZE):
+    hasher = hashlib.sha256()
+    with open(filepath, 'rb') as hash_file:
+        for block in iter(lambda: hash_file.read(block_size), b''):
+            hasher.update(block)
+    logging.info('File hash: %s (%s)' % (hasher.hexdigest(), filepath))
+    return hasher.hexdigest()
+
+
+def list_files(directory):
+    replacement = directory + os.path.sep
+    for directory, _, files in os.walk(directory):
+        for file in files:
+            full_path = os.path.join(directory, file)
+            relative_path = full_path.replace(replacement,
+                                              '').replace(os.path.sep, '/')
+            yield full_path, relative_path
 
 
 def tupperware(mapping):
