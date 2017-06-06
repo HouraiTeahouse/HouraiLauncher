@@ -18,6 +18,8 @@ if 'win' in platform.platform().lower():
     except:
         loggin.warning('Cannot import gettext_windows')
 
+CHUNK_SIZE = 1024 * 1024
+
 CONFIG_DIRNAME = 'Launcher'
 TRANSLATION_DIRNAME = 'i18n'
 CONFIG_FILE = 'config.json'
