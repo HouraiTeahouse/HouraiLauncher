@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import logging
 import time
-from config import CHUNK_SIZE
+from util import CHUNK_SIZE
 
 def download_file(url,
                   path,

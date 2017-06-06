@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import logging
 import os
 import platform
@@ -10,14 +9,14 @@ import time
 import multiprocessing
 import requests
 import feedparser
-import os.path
-from download import DownloadTracker
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
-from config import BASE_DIR, RESOURCE_DIR, CHUNK_SIZE
+from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
+from util import sha256_hash, list_files
+from download import DownloadTracker
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -28,27 +27,6 @@ WIDTH = 640
 HEIGHT = 480
 
 THREAD_MULTIPLIER = 5
-
-
-def sha256_hash(filepath, block_size=CHUNK_SIZE):
-    hasher = hashlib.sha256()
-    with open(filepath, 'rb') as hash_file:
-        buf = hash_file.read(block_size)
-        while len(buf) > 0:
-            hasher.update(buf)
-            buf = hash_file.read(block_size)
-    logging.info('File hash: %s (%s)' % (hasher.hexdigest(), filepath))
-    return hasher.hexdigest()
-
-
-def list_files(directory):
-    replacement = directory + os.path.sep
-    for directory, _, files in os.walk(directory):
-        for file in files:
-            full_path = os.path.join(directory, file)
-            relative_path = full_path.replace(replacement,
-                                              '').replace(os.path.sep, '/')
-            yield full_path, relative_path
 
 
 class Branch(object):
