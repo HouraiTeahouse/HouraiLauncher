@@ -110,7 +110,8 @@ class Branch(object):
         with requests.Session() as session:
             logging.info(
                 'Comparing local installation against remote index...')
-            self._diff_files(branch_context, download_tracker, remote_index, session)
+            self._diff_files(branch_context, download_tracker, remote_index,
+                             session)
             logging.info(
                 'Total download size: %s' % download_tracker.total_size)
             self._preclean_branch_directory(download_tracker)

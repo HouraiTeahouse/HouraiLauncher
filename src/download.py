@@ -4,6 +4,7 @@ import logging
 import time
 from util import CHUNK_SIZE
 
+
 def download_file(url,
                   path,
                   block_fun=None,
