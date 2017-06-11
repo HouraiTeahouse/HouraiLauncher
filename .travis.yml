@@ -23,26 +23,24 @@ matrix:
         - pip install six wheel
 env:
   global:
-    - PYTHONPATH="$TRAVIS_BUILD_DIR/src"
+    - PYTHONPATH="$TRAVIS_BUILD_DIR/src;$TRAVIS_BUILD_DIR/test"
 # Perform the manual steps on osx to install python3 and activate venv
 install:
-  - python --version
-  - echo $PYTHONPATH
   # install dependencies
   - pip install -r requirements.txt
   # Test dev version of PyInstaller
   - pip install https://github.com/pyinstaller/pyinstaller/archive/develop.zip
   # install testing tools
-  - pip install coverage
-  - pip install coveralls
-  - pip install pep8
+  - pip install coverage coveralls pep8
 script:
   # PEP8 Style Checks
   - pep8 --show-source src/ test/
   # Run tests and collect coverage information
-  - coverage run --source=src/ -m unittest discover -v -s test
+  - nosetests --with-coverage --cover-package=src --cover-html
   # Run PyInstaller build
   - pyinstaller specs/launcher.spec --name launcher --onefile --log-level=DEBUG
+after_success:
+  coveralls
 deploy:
   - provider: script
     script: curl -i -X POST $DEPLOY_BASE_URL/$TRAVIS_BRANCH/$TRAVIS_OS_NAME?token=$TOKEN
