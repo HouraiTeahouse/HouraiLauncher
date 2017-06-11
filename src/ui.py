@@ -242,7 +242,7 @@ class MainWindow(QWidget):
         logging.info('Saving new launcher to: %s' % temp_file)
         old_file = sys.executable + '.old'
         self.download_tracker.clear()
-        self.download_tracker.download_file(
+        self.download_tracker.add_download(
             temp_file, url, os.path.getsize(sys.executable))
         self.launch_game_btn.setText(_('Updating Launcher'))
         self.launch_game_btn.show()
