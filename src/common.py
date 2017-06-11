@@ -24,12 +24,15 @@ def sanitize_url(url):
 def inject_variables(path_format, vars_obj=GLOBAL_CONTEXT):
     matches = vars_regex.findall(path_format)
     path = path_format
+    vars_is_dict = isinstance(vars_obj, dict)
     for match in matches:
-        target = '{%s}' % match
-        if isinstance(vars_obj, dict) and match in vars_obj:
-            path = path.replace(target, str(vars_obj[match]))
+        if vars_is_dict:
+            replacement = vars_obj.get(match)
         else:
             replacement = getattr(vars_obj, match, None)
-            if replacement is not None:
-                path = path.replace(target, str(replacement))
+
+        if replacement is None:
+            continue
+
+        path = path.replace('{%s}' % match, str(replacement))
     return path
