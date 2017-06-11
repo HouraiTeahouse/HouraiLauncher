@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import requests
 import time
 from util import CHUNK_SIZE
 
@@ -12,23 +13,26 @@ def download_file(url,
                   filehash=None):
     logging.info('Downloading %s from %s...' % (path, url))
     hasher = hashlib.sha256()
+    if session:
+        response = session.get(url, stream=True)
+    else:
+        response = requests.get(url, stream=True)
+
     with open(path, 'wb+') as downloaded_file:
-        if session:
-            response = session.get(url, stream=True)
-        else:
-            response = requests.get(url, stream=True)
         logging.info('Response: %s (%s)' %
                      (response.status_code, url))
         for block in response.iter_content(CHUNK_SIZE):
             logging.info('Downloaded chunk of (size: %s, %s)' %
                          (len(block), path))
             if block_fun is not None:
+                # give callback function the block
                 block_fun(block)
             downloaded_file.write(block)
             hasher.update(block)
+
     download_hash = hasher.hexdigest()
     if filehash is not None and download_hash != filehash:
-        logging.error('File downoad hash mismatch: (%s) \n'
+        logging.error('File download hash mismatch: (%s) \n'
                       '   Expected: %s \n'
                       '   Actual: %s' % (path, filehash, download_hash))
     logging.info('Done downloading: %s' % path)
@@ -44,12 +48,13 @@ class Download(object):
         self.downloaded_bytes = 0
 
     def download_file(self, session=None):
-        def inc_fun(block):
-            self.downloaded_bytes += len(block)
         return download_file(self.url,
                              self.file_path,
-                             block_fun=inc_fun,
+                             block_fun=self._inc_download,
                              session=session)
+
+    def _inc_download(self, block):
+        self.downloaded_bytes += len(block)
 
 
 class DownloadTracker(object):
