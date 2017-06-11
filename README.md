@@ -18,7 +18,7 @@ you'll need to configure it, and build your own copy.
 
 **NOTE:** For the patching functionality to work, the install directory for both
 the patcher and the game (it must be the same directory) must be writable
-without evevated permissions. The game will launch properly, but will not patch
+without elevated permissions. The game will launch properly, but will not patch
 over time. This includes Window's "Program Files" folder. For such situations,
 we suggest installing under "C:\Games" or something similar.
 

@@ -12,18 +12,27 @@ from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
 from collections import OrderedDict
 
+# there are a lot of module-level declarations below, so to make it
+# clear what objects are available we will specify with __all__
+__all__ = (
+    "TRANSLATION_DIRNAME", "TRANSLATION_DIR", "TRANSLATIONS",
+    "CONFIG_DIRNAME", "CONFIG_DIR", "CONFIG_FILE",
+    "BASE_DIR", "RESOURCE_DIR", "GLOBAL_CONTEXT"
+    )
+
+
 if 'win' in platform.platform().lower():
     try:
         import gettext_windows
     except:
-        loggin.warning('Cannot import gettext_windows')
+        logging.warning('Cannot import gettext_windows')
 
 CONFIG_DIRNAME = 'Launcher'
 TRANSLATION_DIRNAME = 'i18n'
 CONFIG_FILE = 'config.json'
 
 # Get the base directory the executable is found in
-# When running from a python interpretter, it will use the current working
+# When running from a python interpreter, it will use the current working
 # directory.
 # sys.frozen is an attribute injected by pyinstaller at runtime
 if getattr(sys, 'frozen', False):

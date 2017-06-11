@@ -89,3 +89,6 @@ ENV/
 # Idea/PyCharm project
 .idea
 *.iml
+
+# Launcher logs
+launcher_log.*

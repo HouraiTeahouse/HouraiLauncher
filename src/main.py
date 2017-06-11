@@ -5,13 +5,12 @@ from config import CONFIG, RESOURCE_DIR
 from ui import MainWindow
 from common import app, loop
 
+# load all the icons from the img folder into a QIcon object
 app_icon = QtGui.QIcon()
-for size in [16, 24, 32, 48]:
+for size in (16, 32, 48, 64, 256):
     app_icon.addFile(
-        os.path.join(RESOURCE_DIR, 'img/%sx%s.ico' % (size, size)),
+        os.path.join(RESOURCE_DIR, 'img', '%sx%s.ico' % (size, size)),
         QtCore.QSize(size, size))
-app_icon.addFile(
-    os.path.join(RESOURCE_DIR, 'img/app.ico'), QtCore.QSize(256, 256))
 app.setWindowIcon(app_icon)
 
 main_window = MainWindow(CONFIG)

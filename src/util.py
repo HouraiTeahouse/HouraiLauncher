@@ -3,11 +3,12 @@ import logging
 import hashlib
 import os
 
-CHUNK_SIZE = 1024 * 1024
+CHUNK_SIZE = 1024**2
 
 
 def sha256_hash(filepath, block_size=CHUNK_SIZE):
     hasher = hashlib.sha256()
+    assert block_size > 0, ("hash block size must be greater than zero.")
     with open(filepath, 'rb') as hash_file:
         for block in iter(lambda: hash_file.read(block_size), b''):
             hasher.update(block)
@@ -16,12 +17,14 @@ def sha256_hash(filepath, block_size=CHUNK_SIZE):
 
 
 def list_files(directory):
-    replacement = directory + os.path.sep
+    sep = os.path.sep
+    # using os.path.join to prevent an additional
+    # os.path.sep if directory already ends with it
+    root = os.path.join(directory, '')
     for directory, _, files in os.walk(directory):
         for file in files:
             full_path = os.path.join(directory, file)
-            relative_path = full_path.replace(replacement,
-                                              '').replace(os.path.sep, '/')
+            relative_path = os.path.relpath(full_path, root).replace(sep, '/')
             yield full_path, relative_path
 
 
