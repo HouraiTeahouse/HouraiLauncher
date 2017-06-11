@@ -48,10 +48,8 @@ install:
   # Set InnoSetup path here, because Cython complained about it.
   - set PATH=%PATH%;"C:\\Program Files (x86)\\Inno Setup 5"
   - iscc /Q install/setup.iss
-
-  # Deploy results
+deploy_script:
   - cmd: ./scripts/deploy_win.bat
-
 # Not a project with an msbuild file, build done at install.
 build: off
 artifacts:
