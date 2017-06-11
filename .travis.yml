@@ -20,7 +20,7 @@ matrix:
         - virtualenv venv -p python3
         - source venv/bin/activate
         - which pip
-        - pip install six wheel
+        - pip install six wheel nose
 env:
   global:
     - PYTHONPATH="$TRAVIS_BUILD_DIR/src;$TRAVIS_BUILD_DIR/test"
