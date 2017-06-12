@@ -1,5 +1,5 @@
 import os
-from unittest import TestCase, main
+from unittest import TestCase, main, mock
 from util import list_files, namedtuple_from_mapping, ProtectedDict,\
      sha256_hash, tupperware
 
@@ -7,12 +7,23 @@ from util import list_files, namedtuple_from_mapping, ProtectedDict,\
 class UtilTest(TestCase):
 
     def test_sha256_hash_empty_file(self):
-        # need to figure out how to mock a file object
-        pass
+        with mock.patch('util.open', mock.mock_open(read_data=b'')) as m:
+            result_hash = sha256_hash('mockfile_empty')
+
+        m.assert_called_once_with('mockfile_empty', 'rb')
+        self.assertEqual(
+            result_hash,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
     def test_sha256_hash_4kb_of_0xff(self):
-        # need to figure out how to mock a file object
-        pass
+        with mock.patch('util.open',
+                        mock.mock_open(read_data=b'\xFF'*4*(1024**2))) as m:
+            result_hash = sha256_hash('mockfile_4kb_0xff')
+
+        m.assert_called_once_with('mockfile_4kb_0xff', 'rb')
+        self.assertEqual(
+            result_hash,
+            "cd3517473707d59c3d915b52a3e16213cadce80d9ffb2b4371958fb7acb51a08")
 
     def test_list_files_in_test_directory(self):
         splitext = os.path.splitext
