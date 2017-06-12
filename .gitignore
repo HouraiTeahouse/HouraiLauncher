@@ -90,5 +90,7 @@ ENV/
 .idea
 *.iml
 
-# Launcher logs
+# Launcher stuff
+Launcher/
+launcher/
 launcher_log.*
