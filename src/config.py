@@ -16,7 +16,7 @@ from collections import OrderedDict
 # clear what objects are available we will specify with __all__
 __all__ = (
     "TRANSLATION_DIRNAME", "TRANSLATION_DIR", "TRANSLATIONS",
-    "CONFIG_DIRNAME", "CONFIG_DIR", "CONFIG_FILE",
+    "CONFIG", "CONFIG_DIRNAME", "CONFIG_DIR", "CONFIG_FILE",
     "BASE_DIR", "RESOURCE_DIR", "GLOBAL_CONTEXT"
     )
 
