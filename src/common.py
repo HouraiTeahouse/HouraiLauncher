@@ -30,9 +30,7 @@ def inject_variables(path_format, vars_obj=GLOBAL_CONTEXT):
             replacement = vars_obj.get(match)
         else:
             replacement = getattr(vars_obj, match, None)
-
         if replacement is None:
             continue
-
         path = path.replace('{%s}' % match, str(replacement))
     return path
