@@ -1,8 +1,9 @@
-#import config
+# import config
 from unittest import TestCase, main
 
 # cannot run this test until a bug is fixed with the config module.
 # it is exceptioning when config tries to use the logging module.
+
 
 class DownloadTest(TestCase):
     def test_config_contains_proper_attributes(self):
