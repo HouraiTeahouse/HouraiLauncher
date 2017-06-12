@@ -12,8 +12,6 @@ from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
 from util import namedtuple_from_mapping
 from collections import OrderedDict
 
-# there are a lot of module-level declarations below, so to make it
-# clear what objects are available we will specify with __all__
 __all__ = (
     "TRANSLATION_DIRNAME", "TRANSLATION_DIR", "TRANSLATIONS",
     "CONFIG", "CONFIG_DIRNAME", "CONFIG_DIR", "CONFIG_FILE",
