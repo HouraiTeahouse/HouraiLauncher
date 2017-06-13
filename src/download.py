@@ -47,11 +47,12 @@ class Download(object):
         self.total_size = download_size
         self.downloaded_bytes = 0
 
-    def download_file(self, session=None):
+    def download_file(self, session=None, filehash=None):
         return download_file(self.url,
                              self.file_path,
                              block_fun=self._inc_download,
-                             session=session)
+                             session=session,
+                             filehash=filehash)
 
     def _inc_download(self, block):
         self.downloaded_bytes += len(block)

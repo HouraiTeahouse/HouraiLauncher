@@ -18,13 +18,6 @@ __all__ = (
     "BASE_DIR", "RESOURCE_DIR", "GLOBAL_CONTEXT"
     )
 
-
-if 'win' in platform.platform().lower():
-    try:
-        import gettext_windows
-    except:
-        logging.warning('Cannot import gettext_windows')
-
 CONFIG_DIRNAME = 'Launcher'
 TRANSLATION_DIRNAME = 'i18n'
 CONFIG_FILE = 'config.json'
@@ -58,9 +51,17 @@ else:
     RESOURCE_DIR = os.getcwd()
 logging.info('Resource Directory: %s' % RESOURCE_DIR)
 
+gettext_windows = None
 if 'win' in platform.platform().lower():
     logging.info('Setting Windows enviorment variables for translation...')
+    try:
+        import gettext_windows
+    except:
+        logging.warning('Cannot import gettext_windows')
+
+if gettext_windows is not None:
     gettext_windows.setup_env()
+
 TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
 TRANSLATIONS = gettext.translation(
     'hourai-launcher', TRANSLATION_DIR, fallback=True)
