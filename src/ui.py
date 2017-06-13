@@ -14,7 +14,7 @@ from babel.dates import format_date
 from datetime import datetime
 from time import mktime
 from enum import Enum
-from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
+from common import inject_variables, get_loop, sanitize_url, GLOBAL_CONTEXT
 from util import sha256_hash, list_files
 from download import DownloadTracker
 from quamash import QThreadExecutor
@@ -97,7 +97,7 @@ class Branch(object):
                 shutil.rmtree(path)
 
     def fetch_remote_index(self, context, download_tracker):
-        asyncio.set_event_loop(loop)
+        asyncio.set_event_loop(get_loop())
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
         url = inject_variables(self.config.index_endpoint, branch_context)
@@ -230,9 +230,9 @@ class MainWindow(QWidget):
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
         # TODO(james7132): Do proper error checking
-        response = await loop.run_in_executor(self.executor,
-                                              requests.get,
-                                              hash_url)
+        response = await get_loop().run_in_executor(self.executor,
+                                                    requests.get,
+                                                    hash_url)
         remote_launcher_hash = response.text
         logging.info('Remote launcher hash: %s' % remote_launcher_hash)
         if remote_launcher_hash == launcher_hash:
@@ -267,7 +267,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setEnabled(False)
         start = time.time()
         await asyncio.gather(*[
-            loop.run_in_executor(self.executor, branch.index_directory)
+            get_loop().run_in_executor(self.executor, branch.index_directory)
             for branch in self.branches.values()])
         logging.info('Local installation check completed.')
         logging.info('Game status check took %s seconds.' % (time.time() -
@@ -278,9 +278,9 @@ class MainWindow(QWidget):
         self.launch_game_btn.hide()
         self.progress_bar.show()
         logging.info('Checking for remote game updates...')
-        downloads = [loop.run_in_executor(self.executor,
-                                          branch.fetch_remote_index,
-                                          self.context, self.download_tracker)
+        downloads = [get_loop().run_in_executor(
+            self.executor, branch.fetch_remote_index,
+            self.context, self.download_tracker)
                      for branch in self.branches.values()]
         await asyncio.gather(*downloads)
         logging.info('Remote game update check completed.')
