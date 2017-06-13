@@ -1,4 +1,5 @@
 import asyncio
+import config
 import logging
 import os
 import platform
@@ -12,7 +13,6 @@ import feedparser
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
-from config import BASE_DIR, RESOURCE_DIR
 from enum import Enum
 from common import inject_variables, loop, sanitize_url, GLOBAL_CONTEXT
 from util import sha256_hash, list_files
@@ -31,13 +31,13 @@ THREAD_MULTIPLIER = 5
 
 class Branch(object):
 
-    def __init__(self, name, source_branch, config):
+    def __init__(self, name, source_branch, cfg):
         self.name = name
         self.source_branch = source_branch
-        self.directory = os.path.join(BASE_DIR, name)
+        self.directory = os.path.join(config.BASE_DIR, name)
         self.is_indexed = False
         self.last_fetched = None
-        self.config = config
+        self.config = cfg
         self.files = {}
 
     def index_directory(self):
@@ -142,12 +142,12 @@ class ClientState(Enum):
 
 class MainWindow(QWidget):
 
-    def __init__(self, config):
+    def __init__(self, cfg):
         super().__init__()
-        self.config = config
+        self.config = cfg
         branches = self.config.branches
         self.branches = {
-            name: Branch(name, branch, config)
+            name: Branch(name, branch, cfg)
             for branch, name in branches.items()
         }
         self.branch_lookup = {v: k for k, v in self.config.branches.items()}
@@ -307,7 +307,7 @@ class MainWindow(QWidget):
 
         self.launch_game_btn.clicked.connect(self.launch_game)
 
-        logo = QPixmap(os.path.join(RESOURCE_DIR, self.config.logo))
+        logo = QPixmap(os.path.join(config.RESOURCE_DIR, self.config.logo))
         logo = logo.scaledToWidth(WIDTH)
         logo_label = QLabel()
         logo_label.setPixmap(logo)
