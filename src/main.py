@@ -9,7 +9,7 @@ from common import app, loop
 def initialize(show_main_window=False):
     g = globals()
 
-    config.set_directories()
+    config.setup_directories()
     config.install_translations()
 
     # load all the icons from the img folder into a QIcon object
