@@ -15,6 +15,12 @@ class ResponseMock(object):
         for i in range(0, len(self.data), chunk_size):
             yield self.data[i: i + chunk_size]
 
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return eval(self.data)
+
 
 class SessionMock(object):
     responses = None
@@ -71,15 +77,16 @@ class DownloadFileTest(TestCase):
 
     def _call_download(self, test_path, test_url,
                        test_data=b'', test_hash=None, session=None):
+        session = self.session_mock
+        session.data = test_data
         with mock.patch('download.open', mock.mock_open()) as m:
             download_file(
                 test_url, test_path, self._download_inc, session, test_hash)
 
-        session = self.session_mock
         responses = session.responses
         self.assertIn(test_url, responses)
         self.assertEqual(1, len(responses[test_url]))
-        self.assertEqual(len(session.data), self.downloaded_bytes)
+        self.assertEqual(len(test_data), self.downloaded_bytes)
         m.assert_called_once_with(test_path, 'wb+')
 
     def test_download_file_4kb_of_0xff(self):
@@ -125,6 +132,8 @@ class DownloadTest(TestCase):
     def _call_download(self, test_path, test_url,
                        test_data=b'', test_hash=None, session=None):
         downloader = Download(test_path, test_url, len(test_data))
+        session = self.session_mock
+        session.data = test_data
 
         with mock.patch('download.open', mock.mock_open()) as m:
             downloader.download_file(session)
@@ -133,7 +142,7 @@ class DownloadTest(TestCase):
         responses = session.responses
         self.assertIn(test_url, responses)
         self.assertEqual(1, len(responses[test_url]))
-        self.assertEqual(len(session.data), downloader.downloaded_bytes)
+        self.assertEqual(len(test_data), downloader.downloaded_bytes)
         m.assert_called_once_with(test_path, 'wb+')
 
     test_download_4kb_of_0xff = DownloadFileTest.\
@@ -154,6 +163,9 @@ class DownloadTrackerTest(TestCase):
     setUp = DownloadFileTest.setUp
 
     tearDown = DownloadFileTest.tearDown
+
+    # TODO:
+    # write tests for this class
 
 
 if __name__ == "__main__":
