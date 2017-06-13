@@ -103,7 +103,7 @@ class ConfigTest(TestCase):
         # TODO:
         # until the bug with the logger can be fixed, the logger wont be setup.
         # also need to determine how to detect if it has been set up
-        pass
+        config.setup_logger()
 
     def test_translations_are_properly_installed(self):
         # TODO:

@@ -1,8 +1,13 @@
+import common
 import os
 import platform
 import sys
 from unittest import TestCase, main
-from common import sanitize_url, inject_variables, GLOBAL_CONTEXT
+from unittest.case import _UnexpectedSuccess
+from common import get_app, get_loop, set_app_icon, ICON_SIZES, sanitize_url,\
+     inject_variables, GLOBAL_CONTEXT
+from PyQt5.QtWidgets import QApplication
+from quamash import QEventLoop
 from util import tupperware
 
 
@@ -11,6 +16,49 @@ launcher_endpoint = "https://patch.houraiteahouse.net/{project}/launcher\
 
 
 class CommonTest(TestCase):
+
+    def test_get_loop_fails_without_app(self):
+        common.app = None
+        common.loop = None
+        try:
+            loop = get_loop()
+            raise _UnexpectedSuccess
+        except NameError:
+            pass
+
+    def test_can_get_app(self):
+        app = get_app()
+        self.assertTrue(app)
+
+        # make sure if it is called again, the loop is the same object
+        self.assertIs(get_app(), app)
+
+    def test_can_get_loop(self):
+        loop = get_loop()
+        self.assertTrue(loop)
+
+        # make sure if it is called again, the loop is the same object
+        self.assertIs(get_loop(), loop)
+
+    def test_cannot_set_icon_without_app(self):
+        common.app = None
+        try:
+            set_app_icon()
+            raise _UnexpectedSuccess
+        except NameError:
+            pass
+
+    def test_app_icon_has_all_sizes(self):
+        common.app = QApplication(sys.argv)
+        common.loop = QEventLoop(common.app)
+        set_app_icon()
+
+        qicon_sizes = common.app_icon.availableSizes()
+        self.assertEqual(len(ICON_SIZES), len(qicon_sizes))
+
+        for q_size in qicon_sizes:
+            self.assertTrue(q_size.height() == q_size.width())
+            self.assertIn(q_size.height(), ICON_SIZES)
 
     def test_sanitize_url(self):
         self.assertEqual(
