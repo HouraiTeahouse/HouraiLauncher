@@ -1,3 +1,5 @@
+echo "Branch: %APPVEYOR_REPO_BRANCH%"
+echo "Pull Request: %APPVEYOR_PULL_REQUEST_NUMBER%"
 if %APPVEYOR_REPO_BRANCH% == "master" (
         for /r %%i in (dist/*) do echo %%i
 
