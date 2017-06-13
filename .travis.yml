@@ -8,6 +8,9 @@ matrix:
       cache: pip
       dist: trusty
       sudo: false
+      env:
+        # Required to disable QXcbConnection errors/warnings
+        - QT_QPA_PLATFORM=offscreen
     # Use generic language for osx
     - os: osx
       language: generic
