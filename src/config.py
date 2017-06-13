@@ -22,12 +22,13 @@ __all__ = (
 CONFIG_DIRNAME = 'Launcher'
 CONFIG_NAME = 'config.json'
 TRANSLATION_DIRNAME = 'i18n'
+_TRANSLATIONS_INSTALLED = False
+_DIRECTORIES_SETUP = False
 _LOGGER_SETUP = False
 
 
 def get_config():
-    g = globals()
-    if g.get('CONFIG') is None:
+    if globals().get('CONFIG') is None:
         reload_config()
 
     return CONFIG
@@ -35,6 +36,9 @@ def get_config():
 
 def install_translations():
     g = globals()
+    if g.get('_TRANSLATIONS_INSTALLED'):
+        return
+
     gettext_windows = None
     if 'win' in platform.platform().lower():
         logging.info(
@@ -50,11 +54,12 @@ def install_translations():
     g['TRANSLATIONS'] = gettext.translation(
         'hourai-launcher', TRANSLATION_DIR, fallback=True)
     TRANSLATIONS.install()
+    g['_TRANSLATIONS_INSTALLED'] = True
 
 
 def reload_config():
     g = globals()
-    set_directories()
+    setup_directories()
     install_translations()
 
     # Load Config
@@ -102,6 +107,9 @@ def reload_config():
 
 def setup_logger(log_dir, backup_count=5):
     g = globals()
+    if g.get('_LOGGER_SETUP'):
+        return
+
     log_handler = RotatingFileHandler(
         os.path.join(log_dir, 'launcher_log.txt'),
         backupCount=backup_count)
@@ -114,8 +122,10 @@ def setup_logger(log_dir, backup_count=5):
     g['_LOGGER_SETUP'] = True
 
 
-def set_directories():
+def setup_directories():
     g = globals()
+    if g.get('_DIRECTORIES_SETUP'):
+        return
     # Get the base directory the executable is found in
     # When running from a python interpreter, it will use the current working
     # directory.
@@ -125,8 +135,7 @@ def set_directories():
     else:
         BASE_DIR = os.getcwd()
 
-    if not g.get('_LOGGER_SETUP'):
-        setup_logger(log_dir=BASE_DIR, backup_count=5)
+    setup_logger(log_dir=BASE_DIR, backup_count=5)
     logging.info('Base Directory: %s' % BASE_DIR)
 
     if getattr(sys, '_MEIPASS', False):
@@ -146,3 +155,5 @@ def set_directories():
     # inject the directories into the module globals
     g.update(BASE_DIR=BASE_DIR, RESOURCE_DIR=RESOURCE_DIR,
              CONFIG_DIR=CONFIG_DIR, TRANSLATION_DIR=TRANSLATION_DIR)
+
+    g['_DIRECTORIES_SETUP'] = True
