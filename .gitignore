@@ -94,3 +94,6 @@ ENV/
 Launcher/
 launcher/
 launcher_log.*
+
+# Coverage tests
+cover/

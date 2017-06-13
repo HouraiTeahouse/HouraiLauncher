@@ -1,6 +1,6 @@
+import config
 import logging
 import os
-import config
 from PyQt5 import QtGui, QtCore
 from ui import MainWindow
 from common import app, loop
@@ -8,7 +8,6 @@ from common import app, loop
 
 def initialize(show_main_window=False):
     g = globals()
-
     config.setup_directories()
     config.install_translations()
 
@@ -20,7 +19,7 @@ def initialize(show_main_window=False):
                 config.RESOURCE_DIR, 'img', '%sx%s.ico' % (size, size)),
             QtCore.QSize(size, size))
     app.setWindowIcon(app_icon)
-    g['main_window'] = main_window = MainWindow(config.get_config())
+    g['main_window'] = main_window = MainWindow(config.load_config())
 
     if show_main_window:
         main_window.show()
@@ -36,4 +35,5 @@ def initialize(show_main_window=False):
         finally:
             loop.close()
 
-initialize(__name__ == '__main__')
+if __name__ == '__main__':
+    initialize(True)
