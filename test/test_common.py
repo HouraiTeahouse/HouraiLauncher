@@ -27,6 +27,7 @@ class CommonTest(TestCase):
             pass
 
     def test_can_get_app(self):
+        common.app = None
         app = get_app()
         self.assertTrue(app)
 
@@ -34,6 +35,7 @@ class CommonTest(TestCase):
         self.assertIs(get_app(), app)
 
     def test_can_get_loop(self):
+        common.loop = None
         loop = get_loop()
         self.assertTrue(loop)
 

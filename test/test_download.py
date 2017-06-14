@@ -77,13 +77,12 @@ class DownloadFileTest(TestCase):
 
     def _call_download(self, test_path, test_url,
                        test_data=b'', test_hash=None, session=None):
-        session = self.session_mock
-        session.data = test_data
+        self.session_mock.data = test_data
         with mock.patch('download.open', mock.mock_open()) as m:
             download_file(
                 test_url, test_path, self._download_inc, session, test_hash)
 
-        responses = session.responses
+        responses = self.session_mock.responses
         self.assertIn(test_url, responses)
         self.assertEqual(1, len(responses[test_url]))
         self.assertEqual(len(test_data), self.downloaded_bytes)
@@ -132,14 +131,12 @@ class DownloadTest(TestCase):
     def _call_download(self, test_path, test_url,
                        test_data=b'', test_hash=None, session=None):
         downloader = Download(test_path, test_url, len(test_data))
-        session = self.session_mock
-        session.data = test_data
+        self.session_mock.data = test_data
 
         with mock.patch('download.open', mock.mock_open()) as m:
             downloader.download_file(session)
 
-        session = self.session_mock
-        responses = session.responses
+        responses = self.session_mock.responses
         self.assertIn(test_url, responses)
         self.assertEqual(1, len(responses[test_url]))
         self.assertEqual(len(test_data), downloader.downloaded_bytes)
@@ -159,14 +156,60 @@ class DownloadTest(TestCase):
 
 
 class DownloadTrackerTest(TestCase):
+    download_tracker = None
+    progress_bar = ProgressBarMock()
+    executor = ExecutorMock()
 
-    setUp = DownloadFileTest.setUp
+    def setUp(self):
+        self.session_mock = SessionMock()
+        requests.real_get = requests.get
+        requests.get = self.session_mock.get
+        self.download_tracker = DownloadTracker(
+            self.progress_bar, self.executor)
 
-    tearDown = DownloadFileTest.tearDown
+    def tearDown(self):
+        requests.get = requests.real_get
+        del requests.real_get
+        del self.session_mock
+
+    def test_download_tracker_can_update(self):
+        self.download_tracker.update()
+
+    def test_download_tracker_can_add_downloads(self):
+        for path, url, size in [("path1", "url1", 1337),
+                                ("path2", "url2", 1412)]:
+            self.download_tracker.add_download(path, url, size)
+            d = self.download_tracker.downloads[-1]
+            self.assertEqual(d.url, url)
+            self.assertEqual(d.file_path, path)
+            self.assertEqual(d.total_size, size)
+
+    def test_download_tracker_can_clear_downloads(self):
+        downloads = self.download_tracker.downloads
+        download_futures = self.download_tracker.download_futures
+        for i in range(0, 4096, 1024):
+            self.download_tracker.add_download("url%s" % i, "path%s" % i, i)
+            download_futures.append(None)
+
+        self.assertEqual(len(downloads), 4)
+        self.assertEqual(len(download_futures), 4)
+        self.download_tracker.clear()
+        self.assertEqual(len(downloads), 0)
+        self.assertEqual(len(download_futures), 0)
+
+    def test_download_tracker_updates_properly(self):
+        test_download_1 = Download('', '', 2048)
+        test_download_2 = Download('', '', 4096)
+        test_download_1.downloaded_bytes = 1337
+        test_download_2.downloaded_bytes = 1412
+        self.download_tracker.downloads = (test_download_1, test_download_2)
+        self.download_tracker.update()
+
+        self.assertEqual(self.progress_bar.maximum, 2048+4096)
+        self.assertEqual(self.progress_bar.value, 1337+1412)
 
     # TODO:
-    # write tests for this class
-
+    # write unittests for _execute_requests, run, and run_async 
 
 if __name__ == "__main__":
     main()

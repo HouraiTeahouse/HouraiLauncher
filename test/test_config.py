@@ -105,6 +105,12 @@ class ConfigTest(TestCase):
         # also need to determine how to detect if it has been set up
         config.setup_logger()
 
+    def test_loggers_are_not_setup_twice(self):
+        config._LOGGER_SETUP = True
+        config.setup_logger()
+        # TODO:
+        # need to determine how to detect if it has been set up
+
     def test_translations_are_properly_installed(self):
         # TODO:
         # need to figure out how to determine if they are installed

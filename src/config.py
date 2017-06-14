@@ -106,9 +106,8 @@ def reload_config():
                 old_url = url
                 GLOBAL_CONTEXT['project'] = sanitize_url(
                     config_json['project'])
-                url = inject_variables(config_json['config_endpoint'])
-                if 'config_endpoint' not in config_json:
-                    break
+                if 'config_endpoint' in config_json:
+                    url = inject_variables(config_json['config_endpoint'])
         g['CONFIG'] = namedtuple_from_mapping(config_json)
         GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
 
