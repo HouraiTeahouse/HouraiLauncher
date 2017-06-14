@@ -209,7 +209,7 @@ class DownloadTrackerTest(TestCase):
         self.assertEqual(self.progress_bar.value, 1337+1412)
 
     # TODO:
-    # write unittests for _execute_requests, run, and run_async 
+    # write unittests for _execute_requests, run, and run_async
 
 if __name__ == "__main__":
     main()
