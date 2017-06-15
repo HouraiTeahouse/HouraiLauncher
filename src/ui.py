@@ -50,6 +50,9 @@ class Branch(object):
 
     def launch_game(self, game_binary, command_args):
         binary_path = os.path.join(self.directory, game_binary)
+        if not os.path.exists(binary_path):
+            logging.info("Path to binary does not exist: %s" % binary_path)
+            return
         # set to mask for owner permissions and read by group
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
@@ -333,7 +336,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Launching game...'))
         self.launch_game_btn.setEnabled(False)
         system = platform.system()
-        binary = self.config.game_binary[system]
+        binary = self.config.game_binary.get(system, '')
         args = []
         if system in self.config.launch_flags:
             args.extend(self.config.launch_flags[system])
