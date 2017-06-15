@@ -25,8 +25,7 @@ testing_config = namedtuple_from_mapping(
         news_rss_feed="https://www.reddit.com/r/touhou.rss",
         game_binary=dict(Windows="fc.exe", Linux="fc.x86_64"),
         launch_flags=dict(Windows=["-bill", "-gates"],
-                          Linux=["-linus", "-torvalds"],
-                          Darwin=["-linus", "-torvalds"]),
+                          Linux=["-linus", "-torvalds"]),
         branches=dict(develop="Development"),
         )
     )
@@ -160,7 +159,7 @@ class UiTest(TestCase):
     def test_main_window_can_launch_game(self):
         launch_args = []
         system = platform.system()
-        args = testing_config.launch_flags.get(system, ())
+        args = testing_config.launch_flags.get(system, ("-unknown", "-system"))
         main_window = ui.MainWindow(testing_config)
 
         def branch_launch_game_mock(self, binary, args):
@@ -172,7 +171,7 @@ class UiTest(TestCase):
         self.assertEqual(len(launch_args), 3)
         self.assertEqual(launch_args[0], "Development")
         self.assertEqual(launch_args[1],
-                         main_window.config.game_binary[system])
+                         main_window.config.game_binary.get(system))
         self.assertEqual(launch_args[2], args)
 
     def test_main_window_can_change_branch_name(self):
