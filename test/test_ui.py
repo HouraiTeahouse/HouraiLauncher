@@ -3,12 +3,12 @@ import config
 import common
 import ui
 import os
-import sys
+import shutil
 import subprocess
-import platform
+import sys
 from PyQt5 import QtWidgets
 from unittest import TestCase, mock, main
-from util import namedtuple_from_mapping
+from util import namedtuple_from_mapping, get_platform
 
 config.setup_directories()
 testing_config = namedtuple_from_mapping(
@@ -55,14 +55,33 @@ testing_index = dict(
     )
 
 
+class DownloadMock(object):
+    status_code = None
+
+    def __init__(self, path, url, download_size):
+        self.url = url
+        self.file_path = path
+        self.total_size = download_size
+        self.downloaded_bytes = 0
+
+    def download_file(self, session=None, filehash=None):
+        return self.status_code
+
+
 class DownloadTrackerMock(object):
     downloads = None
+    downloads_mock_info = None
 
     def __init__(self):
-        self.downloads = {}
+        self.downloads = []
+        self.downloads_mock_info = {}
 
     def add_download(self, filepath, url, filesize):
-        self.downloads[filepath] = filesize
+        self.downloads_mock_info[filepath] = filesize
+        self.downloads.append(DownloadMock(filepath, url, filesize))
+
+    def __iter__(self):
+        return self.downloads.__iter__()
 
 
 class BranchTest(TestCase):
@@ -108,7 +127,7 @@ class BranchTest(TestCase):
 
     def test_branch_can_detect_diff_files(self):
         download_tracker = DownloadTrackerMock()
-        downloads = download_tracker.downloads
+        downloads = download_tracker.downloads_mock_info
         branch = self.branch
         old_files = branch.files
         branch_context = dict(
@@ -129,6 +148,47 @@ class BranchTest(TestCase):
         self.assertIn("test_file3", downloads)
         self.assertEqual(downloads["test_file2"], 0xbadf00d)
         self.assertEqual(downloads["test_file3"], 0xc001d00d)
+
+    def test_branch_can_preclean_branch_directory(self):
+        branch = self.branch
+        download_tracker = DownloadTrackerMock()
+        downloads = download_tracker.downloads
+
+        download_tracker.add_download("root\\test1.bin", "", 0)
+        download_tracker.add_download("root\\test", "", 0)
+        download_tracker.add_download("root\\test\\test2.bin", "", 0)
+        download_tracker.add_download("root\\test\\test3.bin", "", 0)
+        download_tracker.add_download("root\\test\\asdf\\test4.bin", "", 0)
+
+        existing_dirs = set(["root"])
+        existing_files = set(["root\\test"])
+
+        def os_path_exists_mock(path):
+            if path in existing_dirs or path in existing_files:
+                return True
+            return False
+
+        def os_path_isdir_mock(path):
+            return path in existing_dirs
+
+        def os_makedirs_mock(root_dir):
+            dirs = root_dir.split('\\')
+            for i in range(len(dirs)):
+                existing_dirs.add(os.path.join(*dirs[: i + 1]))
+
+        def shutil_rmtree_mock(path):
+            existing_files.remove(path)
+
+        with mock.patch('os.path.exists', os_path_exists_mock) as m1,\
+                mock.patch('os.path.isdir', os_path_isdir_mock) as m2,\
+                mock.patch('os.makedirs', os_makedirs_mock) as m3,\
+                mock.patch('shutil.rmtree', shutil_rmtree_mock) as m4:
+            branch._preclean_branch_directory(download_tracker)
+
+        self.assertNotIn("root\\test", existing_files)
+        self.assertIn("root", existing_dirs)
+        self.assertIn("root\\test", existing_dirs)
+        self.assertIn("root\\test\\asdf", existing_dirs)
 
     def test_branch_can_launch_game(self):
         branch = self.branch
@@ -223,7 +283,7 @@ class UiTest(TestCase):
 
     def test_main_window_can_launch_game(self):
         launch_args = []
-        system = platform.system()
+        system = get_platform()
         testing_config.launch_flags.setdefault(system, ("-unknown", "-system"))
         testing_config.game_binary.setdefault(system, "unknown.bin")
         main_window = ui.MainWindow(testing_config)
@@ -252,7 +312,7 @@ class UiTest(TestCase):
         main_window = ui.MainWindow(testing_config)
         test_path = (
             "https://patch.houraiteahouse.net/fantasy-crescendo/launcher/" +
-            "%s/%s" % (platform.system(), os.path.basename(sys.executable)))
+            "%s/%s" % (get_platform(), os.path.basename(sys.executable)))
         built_path = main_window.build_path(testing_config.launcher_endpoint)
         self.assertEqual(built_path, test_path)
 
