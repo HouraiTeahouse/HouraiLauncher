@@ -5,11 +5,10 @@ import shutil
 import gettext
 import requests
 import logging
-import platform
 from logging.handlers import RotatingFileHandler
 from requests.exceptions import HTTPError, Timeout
 from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
-from util import namedtuple_from_mapping
+from util import namedtuple_from_mapping, get_platform
 from collections import OrderedDict
 
 __all__ = (
@@ -33,7 +32,7 @@ def install_translations():
         return
 
     gettext_windows = None
-    if 'win' in platform.platform().lower():
+    if 'win' in get_platform().lower():
         if _LOGGER_SETUP:
             logging.info(
                 'Setting Windows environment variables for translation...')
