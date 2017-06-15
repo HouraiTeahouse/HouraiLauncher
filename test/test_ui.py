@@ -164,20 +164,21 @@ class BranchTest(TestCase):
         existing_files = set(["root\\test"])
 
         def os_path_exists_mock(path):
+            path = path.replace('/', '\\')
             if path in existing_dirs or path in existing_files:
                 return True
             return False
 
         def os_path_isdir_mock(path):
-            return path in existing_dirs
+            return path.replace('/', '\\') in existing_dirs
 
         def os_makedirs_mock(root_dir):
-            dirs = root_dir.split('\\')
+            dirs = root_dir.replace('/', '\\').split('\\')
             for i in range(len(dirs)):
                 existing_dirs.add(os.path.join(*dirs[: i + 1]))
 
         def shutil_rmtree_mock(path):
-            existing_files.remove(path)
+            existing_files.remove(path.replace('/', '\\'))
 
         with mock.patch('os.path.exists', os_path_exists_mock) as m1,\
                 mock.patch('os.path.isdir', os_path_isdir_mock) as m2,\
