@@ -73,17 +73,16 @@ class Branch(object):
             url = inject_variables(url_format, context)
 
             file_path = os.path.join(self.directory, filename)
-            download = True
             if filename not in self.files:
                 logging.info('Missing file: %s (%s)' % (filehash, filename))
             elif self.files[filename] != filehash:
                 logging.info('Hash mismatch: %s (%s vs %s)' % (filename,
                              filehash, self.files[filename]))
             else:
-                download = False
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
-            if download:
-                download_tracker.add_download(file_path, url, filesize)
+                continue
+
+            download_tracker.add_download(file_path, url, filesize)
 
     def _preclean_branch_directory(self, download_tracker):
         directories = set(os.path.dirname(download.file_path)
