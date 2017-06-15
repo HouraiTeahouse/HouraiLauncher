@@ -31,28 +31,38 @@ testing_config = namedtuple_from_mapping(
     )
 
 testing_index_files = dict(
-    test1=dict(
+    test_file1=dict(
         sha256="one hash",
         size=0xdeadbeef
         ),
-    test2=dict(
+    test_file2=dict(
         sha256="two hash",
         size=0xbadf00d
         ),
-    test3=dict(
+    test_file3=dict(
         sha256="red AND blue hash",
         size=0xc001d00d
         )
     )
 
-testing_index = namedtuple_from_mapping(dict(
+testing_index = dict(
     files=testing_index_files,
     base_url="https://patch.houraiteahouse.net",
     project="fantasy-crescendo",
     branch="develop",
     platform="Windows",
     url_format="{base_url}/{project}/{branch}/{platform}/{filename}_{filehash}"
-    ))
+    )
+
+
+class DownloadTrackerMock(object):
+    downloads = None
+
+    def __init__(self):
+        self.downloads = {}
+
+    def add_download(self, filepath, url, filesize):
+        self.downloads[filepath] = filesize
 
 
 class BranchTest(TestCase):
@@ -95,6 +105,30 @@ class BranchTest(TestCase):
 
         self.assertTrue(branch.is_indexed)
         self.assertIs(old_files, branch.files)
+
+    def test_branch_can_detect_diff_files(self):
+        download_tracker = DownloadTrackerMock()
+        downloads = download_tracker.downloads
+        branch = self.branch
+        old_files = branch.files
+        branch_context = dict(
+            common.GLOBAL_CONTEXT,
+            project='fantasy-crescendo', branch='develop',
+            base_url=testing_index['base_url']
+            )
+
+        # add two files, one with a good hash and one with a mismatched
+        # hash so we can test that one isnt downloaded and the other is
+        branch.files.update(test_file1="one hash", test_file2="bad hash")
+
+        with mock.patch('os.path.join', lambda *args: args[-1]) as m:
+            branch._diff_files(branch_context, download_tracker, testing_index)
+
+        self.assertEqual(len(downloads), 2)
+        self.assertIn("test_file2", downloads)
+        self.assertIn("test_file3", downloads)
+        self.assertEqual(downloads["test_file2"], 0xbadf00d)
+        self.assertEqual(downloads["test_file3"], 0xc001d00d)
 
     def test_branch_can_launch_game(self):
         branch = self.branch
