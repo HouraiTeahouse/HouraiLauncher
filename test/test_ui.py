@@ -224,7 +224,8 @@ class UiTest(TestCase):
     def test_main_window_can_launch_game(self):
         launch_args = []
         system = platform.system()
-        args = testing_config.launch_flags.get(system, ("-unknown", "-system"))
+        testing_config.launch_flags.setdefault(system, ("-unknown", "-system"))
+        testing_config.game_binary.setdefault(system, "unknown.bin")
         main_window = ui.MainWindow(testing_config)
 
         def branch_launch_game_mock(self, binary, args):
@@ -236,8 +237,9 @@ class UiTest(TestCase):
         self.assertEqual(len(launch_args), 3)
         self.assertEqual(launch_args[0], "Development")
         self.assertEqual(launch_args[1],
-                         main_window.config.game_binary.get(system))
-        self.assertEqual(launch_args[2], args)
+                         testing_config.game_binary[system])
+        self.assertEqual(launch_args[2],
+                         testing_config.launch_flags[system])
 
     def test_main_window_can_change_branch_name(self):
         main_window = ui.MainWindow(testing_config)
