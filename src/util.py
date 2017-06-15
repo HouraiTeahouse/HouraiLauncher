@@ -1,9 +1,17 @@
 import collections
 import logging
 import hashlib
+import platform
 import os
 
 CHUNK_SIZE = 1024**2
+
+
+def get_platform():
+    plat = platform.system()
+    if "darwin" in plat.lower():
+        plat = "OSX"
+    return plat
 
 
 def sha256_hash(filepath, block_size=CHUNK_SIZE):

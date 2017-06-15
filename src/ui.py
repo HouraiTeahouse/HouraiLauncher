@@ -2,7 +2,6 @@ import asyncio
 import config
 import logging
 import os
-import platform
 import shutil
 import subprocess
 import sys
@@ -15,7 +14,7 @@ from datetime import datetime
 from time import mktime
 from enum import Enum
 from common import inject_variables, get_loop, sanitize_url, GLOBAL_CONTEXT
-from util import sha256_hash, list_files
+from util import get_platform, sha256_hash, list_files
 from download import DownloadTracker
 from quamash import QThreadExecutor
 from PyQt5.QtWidgets import *
@@ -334,9 +333,9 @@ class MainWindow(QWidget):
         logging.info('Launching game...')
         self.launch_game_btn.setText(_('Launching game...'))
         self.launch_game_btn.setEnabled(False)
-        system = platform.system()
+        system = get_platform()
         binary = self.config.game_binary.get(system, '')
-        args = []
+        args = ()
         if system in self.config.launch_flags:
-            args.extend(self.config.launch_flags[system])
+            args = self.config.launch_flags[system]
         self.branches[self.branch].launch_game(binary, args)

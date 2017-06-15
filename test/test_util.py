@@ -1,7 +1,8 @@
 import os
+import platform
 from unittest import TestCase, main, mock
-from util import list_files, namedtuple_from_mapping, ProtectedDict,\
-     sha256_hash, tupperware
+from util import get_platform, list_files, namedtuple_from_mapping,\
+     ProtectedDict, sha256_hash, tupperware
 
 
 class UtilTest(TestCase):
@@ -42,6 +43,15 @@ class UtilTest(TestCase):
     def test_namedtuple_from_mapping_can_succeed(self):
         test_tupp = namedtuple_from_mapping({'attr': 'qwer'})
         self.assertEqual(test_tupp.attr, 'qwer')
+
+    def test_can_get_platform(self):
+        with mock.patch('platform.system', lambda: "Darwin") as m:
+            name = get_platform()
+            self.assertEqual(name, "OSX")
+
+        with mock.patch('platform.system', lambda: "Windows") as m:
+            name = get_platform()
+            self.assertEqual(name, "Windows")
 
     def test_tupperware_is_formatted_properly(self):
         test_dict = dict(

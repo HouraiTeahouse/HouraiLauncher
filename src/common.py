@@ -1,16 +1,16 @@
 import asyncio
 import os
 import sys
-import platform
 import re
 from quamash import QEventLoop
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication
+from util import get_platform
 
 ICON_SIZES = (16, 32, 48, 64, 256)
 
 GLOBAL_CONTEXT = {
-    'platform': platform.system(),
+    'platform': get_platform(),
     'executable': os.path.basename(sys.executable)
 }
 
