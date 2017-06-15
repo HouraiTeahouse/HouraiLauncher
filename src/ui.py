@@ -50,6 +50,7 @@ class Branch(object):
 
     def launch_game(self, game_binary, command_args):
         binary_path = os.path.join(self.directory, game_binary)
+        # set to mask for owner permissions and read by group
         os.chmod(binary_path, 0o740)
         args = [binary_path] + command_args
         logging.info('Command: %s' % ' '.join(args))
@@ -65,20 +66,18 @@ class Branch(object):
         for filename, filedata in remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
-            context['filename'] = filename
-            context['filehash'] = filehash
+            context.update(filename=filename, filehash=filehash)
             url = inject_variables(url_format, context)
 
             file_path = os.path.join(self.directory, filename)
-            download = False
+            download = True
             if filename not in self.files:
-                download = True
                 logging.info('Missing file: %s (%s)' % (filehash, filename))
             elif self.files[filename] != filehash:
-                download = True
                 logging.info('Hash mismatch: %s (%s vs %s)' % (filename,
                              filehash, self.files[filename]))
             else:
+                download = False
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
             if download:
                 download_tracker.add_download(file_path, url, filesize)
@@ -257,6 +256,7 @@ class MainWindow(QWidget):
         os.rename(sys.executable, old_file)
         logging.info('Renaming old launcher to: %s' % old_file)
         os.rename(temp_file, sys.executable)
+        # set to mask for owner permissions and read/execute by group
         os.chmod(sys.executable, 0o750)
         subprocess.Popen([sys.executable])
         sys.exit(0)
@@ -334,8 +334,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setEnabled(False)
         system = platform.system()
         binary = self.config.game_binary[system]
+        args = []
         if system in self.config.launch_flags:
-            args = self.config.launch_flags[system]
-        else:
-            args = []
+            args.extend(self.config.launch_flags[system])
         self.branches[self.branch].launch_game(binary, args)
