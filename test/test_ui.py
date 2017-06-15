@@ -101,7 +101,8 @@ class BranchTest(TestCase):
         mock_data = dict(
             sys_exit_called=False,
             os_chmod_args=('', 0),
-            subprocess_Popen_args=())
+            subprocess_Popen_args=('',)
+            )
 
         game_binary = "fc.exe"
         binary_path = os.path.join(branch.directory, game_binary)
@@ -118,14 +119,44 @@ class BranchTest(TestCase):
 
         with mock.patch('subprocess.Popen', subprocess_Popen_mock) as m1,\
                 mock.patch('os.chmod', os_chmod_mock) as m2,\
-                mock.patch('sys.exit', sys_exit_mock) as m3:
+                mock.patch('os.path.isfile', lambda dir: True) as m3,\
+                mock.patch('sys.exit', sys_exit_mock) as m4:
             branch.launch_game(game_binary, command_args)
 
-        self.assertTrue(mock_data['sys_exit_called'])
         self.assertEqual(mock_data['os_chmod_args'][0], binary_path)
         self.assertEqual(mock_data['os_chmod_args'][1], 0o740)
         self.assertEqual(mock_data['subprocess_Popen_args'][0], binary_path)
         self.assertEqual(mock_data['subprocess_Popen_args'][1:], command_args)
+        self.assertTrue(mock_data['sys_exit_called'])
+
+    def test_branch_cannot_launch_nonexistant_binary(self):
+        branch = self.branch
+        mock_data = dict(
+            sys_exit_called=False,
+            os_chmod_args=('', 0),
+            subprocess_Popen_args=('',)
+            )
+
+        def sys_exit_mock():
+            mock_data['sys_exit_called'] = True
+
+        def os_chmod_mock(binary_path, new_mode):
+            mock_data['os_chmod_args'] = (binary_path, new_mode)
+
+        def subprocess_Popen_mock(args):
+            mock_data['subprocess_Popen_args'] = args
+
+        with mock.patch('subprocess.Popen', subprocess_Popen_mock) as m1,\
+                mock.patch('os.chmod', os_chmod_mock) as m2,\
+                mock.patch('os.path.isfile', lambda dir: False) as m3,\
+                mock.patch('sys.exit', sys_exit_mock) as m4:
+            branch.launch_game('qwerty', ('-fake', '-args'))
+
+        self.assertEqual(mock_data['os_chmod_args'][0], '')
+        self.assertEqual(mock_data['os_chmod_args'][1], 0)
+        self.assertEqual(mock_data['subprocess_Popen_args'][0], '')
+        self.assertEqual(mock_data['subprocess_Popen_args'][1:], ())
+        self.assertFalse(mock_data['sys_exit_called'])
 
 
 class UiTest(TestCase):
