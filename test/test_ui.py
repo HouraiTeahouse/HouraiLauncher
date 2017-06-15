@@ -175,15 +175,24 @@ class BranchTest(TestCase):
         def os_makedirs_mock(root_dir):
             dirs = root_dir.replace('/', '\\').split('\\')
             for i in range(len(dirs)):
-                existing_dirs.add(os.path.join(*dirs[: i + 1]))
+                existing_dirs.add(
+                    os.path.join(*dirs[: i + 1]).replace('/', '\\'))
 
         def shutil_rmtree_mock(path):
             existing_files.remove(path.replace('/', '\\'))
 
+        def os_path_dirname_mock(path):
+            dirname = ""
+            path = path.replace('/', '\\')
+            for dir in path.split('\\')[: -1]:
+                dirname += "%s\\" % dir
+            return dirname[: -1]
+
         with mock.patch('os.path.exists', os_path_exists_mock) as m1,\
                 mock.patch('os.path.isdir', os_path_isdir_mock) as m2,\
-                mock.patch('os.makedirs', os_makedirs_mock) as m3,\
-                mock.patch('shutil.rmtree', shutil_rmtree_mock) as m4:
+                mock.patch('os.path.dirname', os_path_dirname_mock) as m3,\
+                mock.patch('os.makedirs', os_makedirs_mock) as m4,\
+                mock.patch('shutil.rmtree', shutil_rmtree_mock) as m5:
             branch._preclean_branch_directory(download_tracker)
 
         self.assertNotIn("root\\test", existing_files)
