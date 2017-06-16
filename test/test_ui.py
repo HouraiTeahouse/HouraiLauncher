@@ -6,8 +6,8 @@ import os
 import shutil
 import subprocess
 import sys
+from async_unittest import AsyncTestCase, TestCase, mock, main
 from PyQt5 import QtWidgets
-from unittest import TestCase, mock, main
 from util import namedtuple_from_mapping, get_platform
 
 config.setup_directories()
@@ -263,7 +263,7 @@ class BranchTest(TestCase):
         self.assertFalse(mock_data['sys_exit_called'])
 
 
-class UiTest(TestCase):
+class UiTest(AsyncTestCase):
 
     def setUp(self):
         common.get_app()
