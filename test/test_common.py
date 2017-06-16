@@ -1,6 +1,5 @@
 import common
 import os
-import platform
 import sys
 from unittest import TestCase, main
 from unittest.case import _UnexpectedSuccess
@@ -8,7 +7,7 @@ from common import get_app, get_loop, set_app_icon, ICON_SIZES, sanitize_url,\
      inject_variables, GLOBAL_CONTEXT
 from PyQt5.QtWidgets import QApplication
 from quamash import QEventLoop
-from util import tupperware
+from util import tupperware, get_platform
 
 
 launcher_endpoint = "https://patch.houraiteahouse.net/{project}/launcher\
@@ -76,18 +75,18 @@ class CommonTest(TestCase):
         self.assertEqual(
             endpoint,
             "https://patch.houraiteahouse.net/{project}/launcher/%s/%s" %
-            (platform.system(), os.path.basename(sys.executable)))
+            (get_platform(), os.path.basename(sys.executable)))
 
     def test_inject_variables_using_custom_context_dict(self):
         context = dict(
-            platform=platform.system(),
+            platform=get_platform(),
             executable=os.path.basename(sys.executable)
             )
         self._inject_variables_using_custom_context(context)
 
     def test_inject_variables_using_custom_context_object(self):
         context = tupperware(dict(
-            platform=platform.system(),
+            platform=get_platform(),
             executable=os.path.basename(sys.executable)
             ))
         self._inject_variables_using_custom_context(context)
