@@ -51,5 +51,5 @@ class AsyncTestCase(TestCase):
     def loop(self, new_val):
         self._loop = new_val
 
-    def run_async(self, coroutine):
-        return self.loop.run_until_complete(coroutine)
+    def run_async(self, coroutine, *args, **kwargs):
+        return self.loop.run_until_complete(coroutine(*args, **kwargs))
