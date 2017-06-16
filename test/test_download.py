@@ -1,5 +1,5 @@
 import requests
-from unittest import TestCase, main, mock
+from async_unittest import AsyncTestCase, TestCase, mock, main
 from download import download_file, Download, DownloadTracker
 
 
@@ -155,7 +155,7 @@ class DownloadTest(TestCase):
         test_download_file_no_session_provided
 
 
-class DownloadTrackerTest(TestCase):
+class DownloadTrackerTest(AsyncTestCase):
     download_tracker = None
     progress_bar = ProgressBarMock()
     executor = ExecutorMock()
