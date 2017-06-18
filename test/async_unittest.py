@@ -29,7 +29,9 @@ def AsyncMagicMock(*args, **kwargs):
 def async_patch(target, new=mock.DEFAULT, *args, **kwargs):
     '''
     Patches 'target' object with 'new' coroutine. If new is not a coroutine,
-    AsyncMock will be called with 'new' as the argument to create one.
+    AsyncMock will be called with 'new' as the argument to replace 'new'.
+    If 'new' is not provided(or mock.DEFAULT), AsyncMagicMock will be called
+    and 'new' will be replaced with it.
     '''
     if new is mock.DEFAULT:
         new = AsyncMagicMock()
