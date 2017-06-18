@@ -131,8 +131,6 @@ def setup_logger(backup_count=5):
         backupCount=backup_count)
     log_handler.doRollover()
     root_logger = g['ROOT_LOGGER'] = logging.getLogger()
-    # adding the log_handler to the root_logger is causing any unit tests
-    # of this module to spit loads of logging errors. tests pass though...
     root_logger.addHandler(log_handler)
     root_logger.setLevel(logging.INFO)
     requests_log = logging.getLogger("requests.packages.urllib3")
