@@ -1,5 +1,8 @@
+import asyncio
 import requests
-from async_unittest import AsyncTestCase, TestCase, mock, main
+import time
+from async_unittest import AsyncTestCase, async_patch, TestCase, mock, main
+from concurrent import futures
 from download import download_file, Download, DownloadTracker
 
 
@@ -37,8 +40,14 @@ class SessionMock(object):
         return response
 
 
-class ExecutorMock(object):
-    pass
+class FutureMock(object):
+    mock_done = False
+    done_call_target_count = 3
+    done_call_count = 0
+
+    def done(self):
+        self.done_call_count += 1
+        return self.done_call_count >= self.done_call_target_count
 
 
 class ProgressBarMock(object):
@@ -158,7 +167,8 @@ class DownloadTest(TestCase):
 class DownloadTrackerTest(AsyncTestCase):
     download_tracker = None
     progress_bar = ProgressBarMock()
-    executor = ExecutorMock()
+    executor = futures.ThreadPoolExecutor()
+    _loop = asyncio.new_event_loop()
 
     def setUp(self):
         self.session_mock = SessionMock()
@@ -208,8 +218,65 @@ class DownloadTrackerTest(AsyncTestCase):
         self.assertEqual(self.progress_bar.maximum, 2048+4096)
         self.assertEqual(self.progress_bar.value, 1337+1412)
 
+        # test the return for when the progress_bar is None
+        self.download_tracker.progress_bar = None
+        self.download_tracker.update()
+
     # TODO:
-    # write unittests for _execute_requests, run, and run_async
+    # write unittests for run, and run_async
+    def test_download_tracker_can_execute_requests(self):
+        tracker = self.download_tracker
+        test_download_1 = Download('', '', 2048)
+        test_download_2 = Download('', '', 4096)
+        test_download_3 = Download('', '', 8192)
+        tracker.downloads = (test_download_1, test_download_2, test_download_3)
+
+        with mock.patch('download.Download.download_file') as m:
+            # the truthyness of m._is_coroutine is True for some reason.
+            # it must be False or else the executor will see it as a coroutine
+            m._is_coroutine = False
+            mock_session = object()
+            self.run_async(tracker._execute_requests, self.loop, mock_session)
+            m.assert_called_with(mock_session)
+
+        self.assertEqual(m.call_count, 3)
+
+    def test_download_tracker_can_run(self):
+        tracker = self.download_tracker
+        future_mock = FutureMock()
+
+        async def run(*args, **kwargs):
+            tracker.run(*args, **kwargs)
+
+        with mock.patch('asyncio.get_event_loop',
+                        return_value=self.loop) as m1,\
+                mock.patch('download.DownloadTracker._execute_requests',
+                           return_value=future_mock) as m2:
+            tracker.progress_bar = None
+            mock_session = object()
+
+            self.run_async(run, mock_session)
+            m2.assert_called_with(self.loop, session=mock_session)
+
+        self.assertEqual(future_mock.done_call_count, 3)
+
+    def test_download_tracker_can_run_async(self):
+        tracker = self.download_tracker
+        future_mock = FutureMock()
+
+        with mock.patch('asyncio.get_event_loop',
+                        return_value=self.loop) as m1,\
+                mock.patch('download.DownloadTracker._execute_requests',
+                           return_value=future_mock) as m2,\
+                async_patch('asyncio.sleep') as m3:
+            tracker.progress_bar = None
+            mock_session = object()
+
+            self.run_async(tracker.run_async, mock_session)
+            m2.assert_called_with(self.loop, session=mock_session)
+
+        self.assertEqual(future_mock.done_call_count, 3)
+
 
 if __name__ == "__main__":
     main()
