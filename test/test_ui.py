@@ -73,6 +73,11 @@ testing_index = dict(
 
 
 def fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen):
+    '''
+    Deletes sys.argv and sys.frozen and replaces them with the provided
+    argv if has_argv is True and frozen if has_frozen is True.
+    Used to restore sys.argv and sys.frozen when testing launcher_update_check
+    '''
     try:
         del sys.argv
     except AttributeError:
@@ -670,21 +675,25 @@ class UiTest(AsyncTestCase):
         executable = getattr(sys, 'executable')
         sys.executable = 'test_exec.bin'
         launcher_hash = 'qwerty'
-        remote_hash = 'qwerty'
-        # TODO: Finish this test
-        return
+        remote_hash = 'asdf'
 
         with mock.patch('ui.sha256_hash', return_value=launcher_hash) as m1,\
                 mock.patch('requests.get', return_value=response) as m2,\
-                async_patch('download.DownloadTracker.run_async', asdf) as m3,\
-                mock.patch('os.path.exists', asdf) as m4,\
-                mock.patch('os.remove', asdf) as m5,\
-                mock.patch('os.rename', asdf) as m6,\
-                mock.patch('os.chmod', asdf) as m7,\
-                mock.patch('subprocess.Popen', asdf) as m8,\
-                mock.patch('sys.exit', asdf) as m9:
+                async_patch('download.DownloadTracker.run_async') as m3,\
+                mock.patch('os.path.getsize', return_value=0) as m4,\
+                mock.patch('os.path.exists', return_value=True) as m5,\
+                mock.patch('os.remove') as m6,\
+                mock.patch('os.rename') as m7,\
+                mock.patch('os.chmod') as m8,\
+                mock.patch('subprocess.Popen') as m9,\
+                mock.patch('sys.exit') as m10:
             response._text = remote_hash
             try:
+                has_argv = hasattr(sys, 'argv')
+                has_frozen = hasattr(sys, 'frozen')
+                argv = getattr(sys, 'argv', None)
+                frozen = getattr(sys, 'frozen', None)
+                sys.argv, sys.frozen = [], True
                 self.run_async(main_window.launcher_update_check)
                 exception = None
             except Exception as e:
@@ -694,6 +703,16 @@ class UiTest(AsyncTestCase):
 
             if exception is not None:
                 raise exception
+
+        old_file = sys.executable + '.old'
+
+        m4.assert_called_once_with(sys.executable)
+        m5.assert_called_once_with(old_file)
+        m6.assert_called_once_with(old_file)
+        self.assertEqual(m7.call_count, 2)
+        m8.assert_called_once_with(sys.executable, 0o750)
+        m9.assert_called_once_with([sys.executable])
+        m10.assert_called_once_with(0)
 
         if has_exec:
             sys.executable = executable

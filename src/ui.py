@@ -247,7 +247,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.setText(_('Updating Launcher'))
         self.launch_game_btn.show()
         self.progress_bar.show()
-        await download_tracker.run_async()
+        await self.download_tracker.run_async()
         if remote_launcher_hash != sha256_hash(temp_file):
             logging.error('Downloaded launcher does not match one'
                           ' described by remote hash file.')
