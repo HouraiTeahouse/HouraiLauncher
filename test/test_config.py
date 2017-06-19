@@ -30,6 +30,10 @@ config.json",
 """
 
 
+def should_not_be_run(*args, **kwargs):
+    raise Exception("The line of code should have not been run.")
+
+
 class RotatingFileHandlerMock(RotatingFileHandler):
 
     def doRollover(self):
@@ -76,7 +80,9 @@ class ConfigTest(TestCase):
         del self.session_mock
 
     def test_directories_are_properly_setup(self):
-        config.setup_directories()
+        with mock.patch('os.path.exists', return_value=False) as m1,\
+                mock.patch('os.makedirs') as m2:
+            config.setup_directories()
 
         if getattr(sys, 'frozen', False):
             BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
@@ -99,28 +105,39 @@ class ConfigTest(TestCase):
 
         self.assertTrue(config._DIRECTORIES_SETUP)
 
-    def test_loggers_are_properly_setup(self):
-        # TODO:
-        # until the bug with the logger can be fixed, the logger wont be setup.
-        # also need to determine how to detect if it has been set up
+    def test_loggers_can_be_setup(self):
+        config._LOGGER_SETUP = False
         config.setup_logger()
+        self.assertTrue(config._LOGGER_SETUP)
 
-    def test_loggers_are_not_setup_twice(self):
+    def test_loggers_cannot_be_setup_twice(self):
         config._LOGGER_SETUP = True
-        config.setup_logger()
-        # TODO:
-        # need to determine how to detect if it has been set up
+        with mock.patch('config.RotatingFileHandler', should_not_be_run) as m:
+            config.setup_logger()
 
-    def test_translations_are_properly_installed(self):
-        # TODO:
-        # need to figure out how to determine if they are installed
+    def test_translations_can_be_installed(self):
         config.install_translations()
-
         self.assertTrue(config._TRANSLATIONS_INSTALLED)
 
+    def test_translations_cannot_be_installed_twice(self):
+        config._TRANSLATIONS_INSTALLED = True
+        with mock.patch('config.get_platform', should_not_be_run) as m:
+            config.install_translations()
+
     def test_config_can_load_config(self):
+        config.CONFIG = None
+        config.setup_logger() 
+        config.setup_directories() 
+        config.install_translations()
+
+        resource_config = os.path.join(config.RESOURCE_DIR, config.CONFIG_NAME)
+        def resource_exists_mock(path):
+            return path == resource_config
+
         with mock.patch('config.open', mock.mock_open(
-                read_data=config_test_data)) as m:
+                read_data=config_test_data)) as m1,\
+                mock.patch('os.path.exists', resource_exists_mock) as m2,\
+                mock.patch('shutil.copyfile') as m3:
             config.load_config()
 
         session = self.session_mock
@@ -129,7 +146,7 @@ class ConfigTest(TestCase):
             "https://patch.houraiteahouse.net/fantasy-crescendo/"
             "launcher/config.json", responses)
 
-        m.assert_called_once_with(
+        m1.assert_called_once_with(
             os.path.join(config.CONFIG_DIR, config.CONFIG_NAME), 'r+')
 
     def test_config_contains_proper_attributes(self):
