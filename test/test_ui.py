@@ -1,6 +1,7 @@
 import asyncio
 import config
 import common
+import download
 import ui
 import os
 import shutil
@@ -13,6 +14,7 @@ from test_download import SessionMock, ResponseMock
 from async_unittest import AsyncTestCase, async_patch, TestCase, mock, main
 from PyQt5 import QtWidgets
 from util import namedtuple_from_mapping, get_platform, tupperware
+
 
 test_rss_data = tupperware(dict(
     # make 13 entries so we can test that only 10 are used
@@ -68,6 +70,25 @@ testing_index = dict(
     platform="Windows",
     url_format="{base_url}/{project}/{branch}/{platform}/{filename}_{filehash}"
     )
+
+
+def fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen):
+    try:
+        del sys.argv
+    except AttributeError:
+        pass
+    try:
+        del sys.frozen
+    except AttributeError:
+        pass
+    if has_argv:
+        sys.argv = argv
+    if has_frozen:
+        sys.frozen = frozen
+
+
+def should_not_be_run(*args, **kwargs):
+    raise Exception("The line of code this patches should have not been run.")
 
 
 class DownloadMock(object):
@@ -539,6 +560,145 @@ class UiTest(AsyncTestCase):
             self.run_async(main_window.fetch_news)
 
         self.assertEqual(len(rows), 0)
+
+    def test_main_window_launcher_update_fails_without_sys_frozen(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.config = None
+        with mock.patch('ui.sha256_hash', should_not_be_run) as m:
+            try:
+                has_argv = hasattr(sys, 'argv')
+                has_frozen = hasattr(sys, 'frozen')
+                argv = getattr(sys, 'argv', None)
+                frozen = getattr(sys, 'frozen', None)
+                if has_frozen:
+                    del sys.frozen
+                self.run_async(main_window.launcher_update_check)
+                exception = None
+            except Exception as e:
+                exception = e
+
+            fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen)
+
+            if exception is not None:
+                raise exception
+
+        self.assertEqual(main_window.client_state,
+                         ui.ClientState.GAME_STATUS_CHECK)
+
+    def test_main_window_launcher_update_returns_early_when_testing(self):
+        main_window = ui.MainWindow(testing_config)
+        with mock.patch('ui.sha256_hash', should_not_be_run) as m:
+            try:
+                has_argv = hasattr(sys, 'argv')
+                has_frozen = hasattr(sys, 'frozen')
+                argv = getattr(sys, 'argv', None)
+                frozen = getattr(sys, 'frozen', None)
+                sys.argv, sys.frozen = ['--test'], True
+                self.run_async(main_window.launcher_update_check)
+                exception = None
+            except Exception as e:
+                exception = e
+
+            fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen)
+
+            if exception is not None:
+                raise exception
+
+        self.assertEqual(main_window.client_state,
+                         ui.ClientState.GAME_STATUS_CHECK)
+
+    def test_main_window_launcher_update_returns_early_with_bad_config(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.config = None
+        with mock.patch('ui.sha256_hash', should_not_be_run) as m:
+            try:
+                has_argv = hasattr(sys, 'argv')
+                has_frozen = hasattr(sys, 'frozen')
+                argv = getattr(sys, 'argv', None)
+                frozen = getattr(sys, 'frozen', None)
+                sys.argv, sys.frozen = [], True
+                self.run_async(main_window.launcher_update_check)
+                exception = None
+            except Exception as e:
+                exception = e
+
+            fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen)
+
+            if exception is not None:
+                raise exception
+
+        self.assertEqual(main_window.client_state,
+                         ui.ClientState.GAME_STATUS_CHECK)
+
+    def test_main_window_launcher_update_returns_on_early_same_hash(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.executor = self.executor
+        response = ResponseMock(b'')
+        has_exec = hasattr(sys, 'executable')
+        executable = getattr(sys, 'executable')
+        sys.executable = 'test_exec.bin'
+        launcher_hash = 'qwerty'
+        remote_hash = 'qwerty'
+
+        with mock.patch('ui.sha256_hash', return_value=launcher_hash) as m1,\
+                mock.patch('requests.get', return_value=response) as m2,\
+                mock.patch('download.DownloadTracker.clear',
+                           should_not_be_run) as m3:
+            response._text = remote_hash
+            try:
+                has_argv = hasattr(sys, 'argv')
+                has_frozen = hasattr(sys, 'frozen')
+                argv = getattr(sys, 'argv', None)
+                frozen = getattr(sys, 'frozen', None)
+                sys.argv, sys.frozen = [], True
+                self.run_async(main_window.launcher_update_check)
+                exception = None
+            except Exception as e:
+                exception = e
+
+            fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen)
+
+            if exception is not None:
+                raise exception
+
+        if has_exec:
+            sys.executable = executable
+
+    def test_main_window_launcher_update_can_succeed(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.executor = self.executor
+        response = ResponseMock(b'')
+        has_exec = hasattr(sys, 'executable')
+        executable = getattr(sys, 'executable')
+        sys.executable = 'test_exec.bin'
+        launcher_hash = 'qwerty'
+        remote_hash = 'qwerty'
+        # TODO: Finish this test
+        return
+
+        with mock.patch('ui.sha256_hash', return_value=launcher_hash) as m1,\
+                mock.patch('requests.get', return_value=response) as m2,\
+                async_patch('download.DownloadTracker.run_async', asdf) as m3,\
+                mock.patch('os.path.exists', asdf) as m4,\
+                mock.patch('os.remove', asdf) as m5,\
+                mock.patch('os.rename', asdf) as m6,\
+                mock.patch('os.chmod', asdf) as m7,\
+                mock.patch('subprocess.Popen', asdf) as m8,\
+                mock.patch('sys.exit', asdf) as m9:
+            response._text = remote_hash
+            try:
+                self.run_async(main_window.launcher_update_check)
+                exception = None
+            except Exception as e:
+                exception = e
+
+            fix_sys_argv_and_frozen(has_argv, has_frozen, argv, frozen)
+
+            if exception is not None:
+                raise exception
+
+        if has_exec:
+            sys.executable = executable
 
 
 if __name__ == "__main__":
