@@ -8,6 +8,7 @@ from download import download_file, Download, DownloadTracker
 
 class ResponseMock(object):
     data = b''
+    _json = None
     status_code = requests.codes['ok']
 
     def __init__(self, data):
@@ -22,7 +23,9 @@ class ResponseMock(object):
         pass
 
     def json(self):
-        return eval(self.data)
+        if self._json is None:
+            self._json = eval(self.data)
+        return self._json
 
 
 class SessionMock(object):
@@ -38,6 +41,12 @@ class SessionMock(object):
         response = ResponseMock(self.data)
         responses.append(response)
         return response
+
+    def __enter__(self, *args, **kwargs):
+        pass
+
+    def __exit__(self, *args, **kwargs):
+        pass
 
 
 class FutureMock(object):

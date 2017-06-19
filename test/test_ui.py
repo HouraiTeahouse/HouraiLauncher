@@ -6,9 +6,24 @@ import os
 import shutil
 import subprocess
 import sys
-from async_unittest import AsyncTestCase, TestCase, mock, main
+import time
+from concurrent import futures
+from common import GLOBAL_CONTEXT
+from test_download import SessionMock, ResponseMock
+from async_unittest import AsyncTestCase, async_patch, TestCase, mock, main
 from PyQt5 import QtWidgets
-from util import namedtuple_from_mapping, get_platform
+from util import namedtuple_from_mapping, get_platform, tupperware
+
+test_rss_data = tupperware(dict(
+    # make 13 entries so we can test that only 10 are used
+    entries=[
+        tupperware(dict(
+            updated_parsed=time.gmtime(),
+            link='some_link',
+            title='some_title'
+            ))
+        ]*13
+    ))
 
 config.setup_directories()
 testing_config = namedtuple_from_mapping(
@@ -71,20 +86,30 @@ class DownloadMock(object):
 class DownloadTrackerMock(object):
     downloads = None
     downloads_mock_info = None
+    run_called_with = ()
+    total_size = 0
 
     def __init__(self):
         self.downloads = []
         self.downloads_mock_info = {}
+        self.run_called_with = []
 
     def add_download(self, filepath, url, filesize):
         self.downloads_mock_info[filepath] = filesize
         self.downloads.append(DownloadMock(filepath, url, filesize))
 
+    def run(self, session=None):
+        self.run_called_with.append(session)
+
     def __iter__(self):
         return self.downloads.__iter__()
 
 
-class BranchTest(TestCase):
+class StopLoopException(Exception):
+    pass
+
+
+class BranchTest(AsyncTestCase):
     branch = None
 
     def setUp(self):
@@ -262,8 +287,33 @@ class BranchTest(TestCase):
         self.assertEqual(mock_data['subprocess_Popen_args'][1:], ())
         self.assertFalse(mock_data['sys_exit_called'])
 
+    def test_branch_fetch_remote_index_can_succeed(self):
+        branch = self.branch
+        download_tracker = DownloadTrackerMock()
+
+        index_session = ResponseMock(b'')
+        index_session._json = testing_index
+        session = SessionMock()
+        existing_files = [('root\\extra_file1', 'extra_file1'),
+                          ('root\\asdf\\extra_file1', 'asdf\\extra_file2')]
+
+        with mock.patch('ui.get_loop', return_value=self.loop) as m1,\
+                mock.patch('ui.Branch._preclean_branch_directory') as m2,\
+                mock.patch('requests.get', return_value=index_session) as m3,\
+                mock.patch('requests.Session', return_value=session) as m4,\
+                mock.patch('ui.Branch._diff_files') as m5,\
+                mock.patch('os.remove') as m6,\
+                mock.patch('ui.list_files', return_value=existing_files) as m7:
+            branch.fetch_remote_index(GLOBAL_CONTEXT, download_tracker)
+
+        m2.assert_called_once_with(download_tracker)
+        self.assertEqual(m3.call_count, 1)
+        self.assertEqual(m4.call_count, 1)
+        self.assertEqual(1, len(download_tracker.run_called_with))
+
 
 class UiTest(AsyncTestCase):
+    executor = futures.ThreadPoolExecutor()
 
     def setUp(self):
         common.get_app()
@@ -289,7 +339,7 @@ class UiTest(AsyncTestCase):
         self.assertTrue(hasattr(main_window, "download_tracker"))
         self.assertTrue(hasattr(main_window, "download_tracker"))
 
-        # TODO: determine if the widgets are set up properly?
+        # TODO: maybe determine if the widgets are set up properly?
 
     def test_main_window_can_launch_game(self):
         launch_args = []
@@ -343,20 +393,152 @@ class UiTest(AsyncTestCase):
         def progress_bar_hide_mock(self):
             mock_data['progress_bar_shown'] = False
 
-        # TODO: This part needs to be tested using async. need to figure
-        # out how to use asyncio in order to finish this test
-        return
         with mock.patch('PyQt5.QtWidgets.QPushButton.setEnabled',
                         launch_game_button_enable_mock) as m1,\
                 mock.patch('PyQt5.QtWidgets.QPushButton.show',
                            launch_game_button_show_mock) as m2,\
                 mock.patch('PyQt5.QtWidgets.QProgressBar.hide',
                            progress_bar_hide_mock) as m3:
-            main_window.ready()
+            self.run_async(main_window.ready)
 
         self.assertTrue(mock_data['launch_game_button_enabled'])
         self.assertTrue(mock_data['launch_game_button_shown'])
         self.assertFalse(mock_data['progress_bar_shown'])
+
+    def test_main_window_game_update_check_can_succeed(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.executor = self.executor
+
+        mock_data = dict(
+            launch_game_button_shown=True,
+            progress_bar_shown=False,
+            )
+
+        def launch_game_button_hide_mock(self):
+            mock_data['launch_game_button_shown'] = False
+
+        def progress_bar_show_mock(self):
+            mock_data['progress_bar_shown'] = True
+
+        with mock.patch('PyQt5.QtWidgets.QPushButton.hide',
+                        launch_game_button_hide_mock) as m1,\
+                mock.patch('PyQt5.QtWidgets.QProgressBar.show',
+                           progress_bar_show_mock) as m2,\
+                mock.patch('ui.get_loop', return_value=self.loop) as m3,\
+                mock.patch('ui.Branch.fetch_remote_index') as m4:
+            m4._is_coroutine = False
+            self.run_async(main_window.game_update_check)
+
+        m4.assert_called_once_with(main_window.context,
+                                   main_window.download_tracker)
+        self.assertFalse(mock_data['launch_game_button_shown'])
+        self.assertTrue(mock_data['progress_bar_shown'])
+        self.assertEqual(main_window.client_state, ui.ClientState.READY)
+
+    def test_main_window_game_status_check_can_succeed(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.executor = self.executor
+
+        mock_data = dict(
+            launch_game_button_enabled=True,
+            )
+
+        def launch_game_button_enable_mock(self, new_state):
+            mock_data['launch_game_button_enabled'] = bool(new_state)
+
+        with mock.patch('PyQt5.QtWidgets.QPushButton.setEnabled',
+                        launch_game_button_enable_mock) as m1,\
+                mock.patch('PyQt5.QtWidgets.QPushButton.setText') as m2,\
+                mock.patch('ui.get_loop', return_value=self.loop) as m3,\
+                mock.patch('ui.Branch.index_directory') as m4:
+            m4._is_coroutine = False
+            self.run_async(main_window.game_status_check)
+
+        self.assertEqual(m4.call_count, len(main_window.branches))
+        self.assertFalse(mock_data['launch_game_button_enabled'])
+        self.assertEqual(main_window.client_state,
+                         ui.ClientState.GAME_UPDATE_CHECK)
+
+    def test_main_window_main_loop_increments_successfully(self):
+        main_window = ui.MainWindow(testing_config)
+        mock_data = dict(
+            launcher_update=-1,
+            game_status=-1,
+            game_update=-1,
+            ready=-1,
+            )
+
+        def launcher_update_mock(_self):
+            mock_data['launcher_update'] = ui.ClientState.LAUNCHER_UPDATE_CHECK
+            _self.client_state = ui.ClientState.GAME_STATUS_CHECK
+
+        def game_status_mock(_self):
+            mock_data['game_status'] = ui.ClientState.GAME_STATUS_CHECK
+            _self.client_state = ui.ClientState.GAME_UPDATE_CHECK
+
+        def game_update_mock(_self):
+            mock_data['game_update'] = ui.ClientState.GAME_UPDATE_CHECK
+            _self.client_state = ui.ClientState.READY
+
+        def ready_mock(_self):
+            mock_data['ready'] = ui.ClientState.READY
+            raise StopLoopException()
+
+        with mock.patch('ui.get_loop', return_value=self.loop) as m1,\
+                mock.patch('ui.QThreadExecutor') as m2,\
+                async_patch('ui.MainWindow.launcher_update_check',
+                            launcher_update_mock) as m3,\
+                async_patch('ui.MainWindow.game_status_check',
+                            game_status_mock) as m4,\
+                async_patch('ui.MainWindow.game_update_check',
+                            game_update_mock) as m5,\
+                async_patch('ui.MainWindow.ready', ready_mock) as m6,\
+                async_patch('ui.MainWindow.fetch_news') as m7:
+            try:
+                self.run_async(main_window.main_loop)
+            except StopLoopException:
+                pass
+
+        self.assertEqual(mock_data.get('launcher_update'),
+                         ui.ClientState.LAUNCHER_UPDATE_CHECK)
+        self.assertEqual(mock_data.get('game_status'),
+                         ui.ClientState.GAME_STATUS_CHECK)
+        self.assertEqual(mock_data.get('game_update'),
+                         ui.ClientState.GAME_UPDATE_CHECK)
+        self.assertEqual(mock_data.get('ready'), ui.ClientState.READY)
+
+    def test_main_window_fetch_news_can_succeed(self):
+        main_window = ui.MainWindow(testing_config)
+        rows = []
+        rss_data = test_rss_data
+
+        def add_row_mock(self, date_label, link_label):
+            rows.append((date_label, link_label))
+
+        with mock.patch('ui.feedparser.parse', return_value=rss_data) as m1,\
+                mock.patch('requests.get') as m2,\
+                mock.patch('ui.QLabel') as m3,\
+                mock.patch('ui.QFormLayout.addRow', add_row_mock) as m4:
+            self.run_async(main_window.fetch_news)
+
+        self.assertEqual(len(rows), 10)
+
+    def test_main_window_fetch_news_fails_without_news_rss_feed(self):
+        main_window = ui.MainWindow(testing_config)
+        main_window.config = None
+        rows = []
+        rss_data = test_rss_data
+
+        def add_row_mock(self, date_label, link_label):
+            rows.append((date_label, link_label))
+
+        with mock.patch('ui.feedparser.parse', return_value=rss_data) as m1,\
+                mock.patch('requests.get') as m2,\
+                mock.patch('ui.QLabel') as m3,\
+                mock.patch('ui.QFormLayout.addRow', add_row_mock) as m4:
+            self.run_async(main_window.fetch_news)
+
+        self.assertEqual(len(rows), 0)
 
 
 if __name__ == "__main__":
