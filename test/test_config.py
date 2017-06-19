@@ -126,11 +126,12 @@ class ConfigTest(TestCase):
 
     def test_config_can_load_config(self):
         config.CONFIG = None
-        config.setup_logger() 
-        config.setup_directories() 
+        config.setup_logger()
+        config.setup_directories()
         config.install_translations()
 
         resource_config = os.path.join(config.RESOURCE_DIR, config.CONFIG_NAME)
+
         def resource_exists_mock(path):
             return path == resource_config
 
