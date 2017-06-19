@@ -238,8 +238,6 @@ class DownloadTrackerTest(AsyncTestCase):
         self.download_tracker.progress_bar = None
         self.download_tracker.update()
 
-    # TODO:
-    # write unittests for run, and run_async
     def test_download_tracker_can_execute_requests(self):
         tracker = self.download_tracker
         test_download_1 = Download('', '', 2048)

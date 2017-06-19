@@ -360,8 +360,6 @@ class UiTest(AsyncTestCase):
         self.assertTrue(hasattr(main_window, "download_tracker"))
         self.assertTrue(hasattr(main_window, "download_tracker"))
 
-        # TODO: maybe determine if the widgets are set up properly?
-
     def test_main_window_can_launch_game(self):
         launch_args = []
         system = get_platform()
