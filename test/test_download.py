@@ -9,6 +9,7 @@ from download import download_file, Download, DownloadTracker
 class ResponseMock(object):
     data = b''
     _json = None
+    _text = None
     status_code = requests.codes['ok']
 
     def __init__(self, data):
@@ -21,6 +22,12 @@ class ResponseMock(object):
 
     def raise_for_status(self):
         pass
+
+    @property
+    def text(self):
+        if self._text is None:
+            self._text = self.data.decode(encoding='utf8')
+        return self._text
 
     def json(self):
         if self._json is None:
