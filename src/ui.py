@@ -17,6 +17,7 @@ from common import inject_variables, get_loop, sanitize_url, GLOBAL_CONTEXT
 from util import get_platform, sha256_hash, list_files
 from download import DownloadTracker
 from quamash import QThreadExecutor
+from requests.exceptions import HTTPError, Timeout, ConnectionError
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import *
@@ -103,6 +104,7 @@ class Branch(object):
         url = inject_variables(self.config.index_endpoint, branch_context)
         logging.info('Fetching remote index from %s...' % url)
         response = requests.get(url)
+
         # TODO(james7132): Do proper error checking
         remote_index = response.json()
         logging.info('Fetched remote index from %s...' % url)
@@ -141,6 +143,7 @@ class ClientState(Enum):
 
 
 class MainWindow(QWidget):
+    news_row_count = 0
 
     def __init__(self, cfg):
         super().__init__()
@@ -173,6 +176,7 @@ class MainWindow(QWidget):
             asyncio.ensure_future(self.fetch_news())
             while True:
                 if self.client_state in state_mapping:
+                    state = self.client_state
                     await state_mapping[self.client_state]()
                 else:
                     await asyncio.sleep(0.1)
@@ -184,12 +188,30 @@ class MainWindow(QWidget):
             return
         feed_url = self.build_path(self.config.news_rss_feed)
         # TODO(james7132): Do proper error checking
-        rss_response = requests.get(feed_url,
-                                    headers={
-                                        'User-Agent': 'HouraiLauncher 0.1.0'
-                                    })
+        try:
+            rss_response = requests.get(
+                feed_url, headers={
+                    'User-Agent': 'HouraiLauncher 0.1.0'
+                    })
+            error_occurred = False
+        except HTTPError as http_error:
+            logging.error(http_error)
+            error_occurred = True
+        except Timeout as timeout:
+            logging.error(timeout)
+            error_occurred = True
+        except ConnectionError as connection_error:
+            logging.error(connection_error)
+            error_occurred = True
+
+        if error_occurred:
+            if self.news_row_count < 10:
+                self.news_row_count += 1
+                self.news_view.addRow(QLabel(
+                    "Could not fetch news. Check the log for details."))
+            return
+
         rss_data = feedparser.parse(rss_response.text)
-        count = 0
         for entry in rss_data.entries:
             entry_time = datetime.fromtimestamp(mktime(entry.updated_parsed))
             entry_date = entry_time.date()
@@ -199,8 +221,8 @@ class MainWindow(QWidget):
             self.news_view.addRow(QLabel(format_date(entry_date)), label)
             logging.info('News Item: %s (%s)' %
                          (format_date(entry_date), entry.title))
-            count += 1
-            if count >= 10:
+            self.news_row_count += 1
+            if self.news_row_count >= 10:
                 break
         logging.info('News fetched!')
 
@@ -230,9 +252,29 @@ class MainWindow(QWidget):
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
         # TODO(james7132): Do proper error checking
-        response = await get_loop().run_in_executor(self.executor,
-                                                    requests.get,
-                                                    hash_url)
+        try:
+            response = await get_loop().run_in_executor(self.executor,
+                                                        requests.get,
+                                                        hash_url)
+            error_occurred = False
+        except HTTPError as http_error:
+            logging.error(http_error)
+            error_occurred = True
+        except Timeout as timeout:
+            logging.error(timeout)
+            error_occurred = True
+        except ConnectionError as connection_error:
+            logging.error(connection_error)
+            error_occurred = True
+
+        if error_occurred:
+            if self.news_row_count < 10:
+                self.news_row_count += 1
+                self.news_view.addRow(QLabel(
+                    "Could not check for launcher updates. "
+                    "Check the log for details."))
+            return
+
         remote_launcher_hash = response.text
         logging.info('Remote launcher hash: %s' % remote_launcher_hash)
         if remote_launcher_hash == launcher_hash:
@@ -283,7 +325,26 @@ class MainWindow(QWidget):
             self.executor, branch.fetch_remote_index,
             self.context, self.download_tracker)
                      for branch in self.branches.values()]
-        await asyncio.gather(*downloads)
+        try:
+            await asyncio.gather(*downloads)
+            error_occurred = False
+        except HTTPError as http_error:
+            logging.error(http_error)
+            error_occurred = True
+        except Timeout as timeout:
+            logging.error(timeout)
+            error_occurred = True
+        except ConnectionError as connection_error:
+            logging.error(connection_error)
+            error_occurred = True
+
+        if error_occurred:
+            if self.news_row_count < 10:
+                self.news_row_count += 1
+                self.news_view.addRow(QLabel(
+                    "Could not check for game updates. "
+                    "Check the log for details."))
+
         logging.info('Remote game update check completed.')
         self.client_state = ClientState.READY
 
