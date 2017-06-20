@@ -59,7 +59,6 @@ def set_app_icon():
                 config.RESOURCE_DIR, 'img', '%sx%s.ico' % (size, size)),
             QtCore.QSize(size, size))
 
-    g['app_icon'] = app_icon
     app.setWindowIcon(app_icon)
 
 

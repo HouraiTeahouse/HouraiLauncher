@@ -41,21 +41,19 @@ def install_translations():
 
     gettext_windows = None
     if 'win' in get_platform().lower():
-        if _LOGGER_SETUP:
-            logging.info(
-                'Setting Windows environment variables for translation...')
+        logging.info(
+            'Setting Windows environment variables for translation...')
         try:
             import gettext_windows
         except:
-            if _LOGGER_SETUP:
-                logging.warning('Cannot import gettext_windows')
+            logging.warning('Cannot import gettext_windows')
 
     if gettext_windows is not None:
         gettext_windows.setup_env()
 
-    g['TRANSLATIONS'] = gettext.translation(
+    translations = gettext.translation(
         'hourai-launcher', TRANSLATION_DIR, fallback=True)
-    TRANSLATIONS.install()
+    translations.install()
     g['_TRANSLATIONS_INSTALLED'] = True
 
 
@@ -77,8 +75,7 @@ def reload_config():
     if not os.path.exists(config_path) and os.path.exists(resource_config):
         shutil.copyfile(resource_config, config_path)
 
-    if _LOGGER_SETUP:
-        logging.info('Loading local config from %s' % config_path)
+    logging.info('Loading local config from %s' % config_path)
     with open(config_path, 'r+') as config_file:
         # Using OrderedDict to preserve JSON ordering of dictionaries
         config_json = json.load(config_file, object_pairs_hook=OrderedDict)
@@ -89,31 +86,24 @@ def reload_config():
         if 'config_endpoint' in config_json:
             url = common.inject_variables(config_json['config_endpoint'])
             while old_url != url:
-                if _LOGGER_SETUP:
-                    logging.info('Loading remote config from %s' % url)
+                logging.info('Loading remote config from %s' % url)
                 try:
                     response = requests.get(url, timeout=5)
                     response.raise_for_status()
                     config_json = response.json()
-                    if _LOGGER_SETUP:
-                        logging.info('Fetched new config from %s.' % url)
+                    logging.info('Fetched new config from %s.' % url)
                     config_file.seek(0)
                     config_file.truncate()
                     json.dump(config_json, config_file)
-                    if _LOGGER_SETUP:
-                        logging.info(
-                            'Saved new config to disk: %s' % config_path)
+                    logging.info('Saved new config to disk: %s' % config_path)
                 except HTTPError as http_error:
-                    if _LOGGER_SETUP:
-                        logging.error(http_error)
+                    logging.error(http_error)
                     break
                 except Timeout as timeout:
-                    if _LOGGER_SETUP:
-                        logging.error(timeout)
+                    logging.error(timeout)
                     break
                 except ConnectionError as connection_error:
-                    if _LOGGER_SETUP:
-                        logging.error(connection_error)
+                    logging.error(connection_error)
                     break
                 old_url = url
                 common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
@@ -165,25 +155,21 @@ def setup_directories():
         BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
     else:
         BASE_DIR = os.getcwd()
-    if _LOGGER_SETUP:
-        logging.info('Base Directory: %s' % BASE_DIR)
+    logging.info('Base Directory: %s' % BASE_DIR)
 
     if getattr(sys, '_MEIPASS', False):
         RESOURCE_DIR = os.path.abspath(sys._MEIPASS)
     else:
         RESOURCE_DIR = os.getcwd()
-    if _LOGGER_SETUP:
-        logging.info('Resource Directory: %s' % RESOURCE_DIR)
+    logging.info('Resource Directory: %s' % RESOURCE_DIR)
 
     CONFIG_DIR = os.path.join(BASE_DIR, CONFIG_DIRNAME)
     if not os.path.exists(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
-    if _LOGGER_SETUP:
-        logging.info('Config Directory: %s' % CONFIG_DIR)
+    logging.info('Config Directory: %s' % CONFIG_DIR)
 
     TRANSLATION_DIR = os.path.join(RESOURCE_DIR, TRANSLATION_DIRNAME)
-    if _LOGGER_SETUP:
-        logging.info('Translation Directory: %s' % TRANSLATION_DIR)
+    logging.info('Translation Directory: %s' % TRANSLATION_DIR)
 
     # inject the directories into the module globals
     g.update(BASE_DIR=BASE_DIR, RESOURCE_DIR=RESOURCE_DIR,
@@ -191,5 +177,7 @@ def setup_directories():
 
     g['_DIRECTORIES_SETUP'] = True
 
+# TODO: fix errors occurring if babel is imported before translations are
+# installed. Comment these out and run main.py to see the exception.
 setup_directories()
 install_translations()

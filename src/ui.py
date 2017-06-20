@@ -51,7 +51,7 @@ class Branch(object):
     def launch_game(self, game_binary, command_args):
         binary_path = os.path.join(self.directory, game_binary)
         if not os.path.isfile(binary_path):
-            logging.info("Path to binary does not exist: %s" % binary_path)
+            logging.error("Path to binary does not exist: %s" % binary_path)
             return
         # set to mask for owner permissions and read by group
         os.chmod(binary_path, 0o740)

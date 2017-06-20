@@ -1,3 +1,4 @@
+import builtins
 import config
 import requests
 import os
@@ -34,30 +35,10 @@ def should_not_be_run(*args, **kwargs):
     raise Exception("The line of code should have not been run.")
 
 
-class RotatingFileHandlerMock(RotatingFileHandler):
-
-    def doRollover(self):
-        pass
-
-    def rotate(self, source, dest):
-        pass
-
-    def close(self):
-        pass
-
-    def _open(self):
-        pass
-
-    def emit(self, record):
-        pass
-
-
 class ConfigTest(TestCase):
     session_mock = None
 
     def setUp(self):
-        config.RotatingFileHandler = RotatingFileHandlerMock
-
         self.session_mock = SessionMock()
         self.session_mock.data = config_test_data
         requests.real_get = requests.get
@@ -74,7 +55,6 @@ class ConfigTest(TestCase):
         config.BASE_DIR = None
         config.RESOURCE_DIR = None
 
-        config.RotatingFileHandler = RotatingFileHandler
         requests.get = requests.real_get
         del requests.real_get
         del self.session_mock
@@ -107,7 +87,17 @@ class ConfigTest(TestCase):
 
     def test_loggers_can_be_setup(self):
         config._LOGGER_SETUP = False
-        config.setup_logger()
+        with mock.patch(
+                'logging.handlers.RotatingFileHandler.doRollover') as m1,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.rotate') as m2,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.close') as m3,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler._open') as m4,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.emit') as m5:
+            config.setup_logger()
         self.assertTrue(config._LOGGER_SETUP)
 
     def test_loggers_cannot_be_setup_twice(self):
@@ -117,7 +107,7 @@ class ConfigTest(TestCase):
 
     def test_translations_can_be_installed(self):
         config.install_translations()
-        self.assertTrue(config._TRANSLATIONS_INSTALLED)
+        self.assertIn("_", __builtins__.keys())
 
     def test_translations_cannot_be_installed_twice(self):
         config._TRANSLATIONS_INSTALLED = True
@@ -138,7 +128,17 @@ class ConfigTest(TestCase):
         with mock.patch('config.open', mock.mock_open(
                 read_data=config_test_data)) as m1,\
                 mock.patch('os.path.exists', resource_exists_mock) as m2,\
-                mock.patch('shutil.copyfile') as m3:
+                mock.patch('shutil.copyfile') as m3,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.doRollover') as m4,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.rotate') as m5,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.close') as m6,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler._open') as m7,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.emit') as m8:
             config.load_config()
 
         session = self.session_mock
@@ -152,28 +152,30 @@ class ConfigTest(TestCase):
 
     def test_config_contains_proper_attributes(self):
         with mock.patch('config.open', mock.mock_open(
-                read_data=config_test_data)) as m:
+                read_data=config_test_data)) as m1,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.doRollover') as m2,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.rotate') as m3,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.close') as m4,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler._open') as m5,\
+                mock.patch(
+                    'logging.handlers.RotatingFileHandler.emit') as m6:
             cfg = config.load_config()
 
-        assert hasattr(config, "TRANSLATION_DIR")
-        assert hasattr(config, "TRANSLATION_DIRNAME")
-        assert hasattr(config, "TRANSLATIONS")
-        assert hasattr(config, "CONFIG_DIR")
-        assert hasattr(config, "CONFIG_DIRNAME")
-        assert hasattr(config, "CONFIG_NAME")
-        assert hasattr(config, "CONFIG")
-        assert hasattr(config, "BASE_DIR")
-        assert hasattr(config, "RESOURCE_DIR")
+        for attr_name in ("TRANSLATION_DIR", "TRANSLATION_DIRNAME",
+                          "CONFIG_DIR", "CONFIG_DIRNAME", "CONFIG_NAME",
+                          "CONFIG", "BASE_DIR", "RESOURCE_DIR"):
+            assert hasattr(config, attr_name), (
+                "config module is missing its '%s' attribute" % attr_name)
 
-        assert hasattr(cfg, "branches")
-        assert hasattr(cfg, "config_endpoint")
-        assert hasattr(cfg, "launcher_endpoint")
-        assert hasattr(cfg, "index_endpoint")
-        assert hasattr(cfg, "launch_flags")
-        assert hasattr(cfg, "news_rss_feed")
-        assert hasattr(cfg, "game_binary")
-        assert hasattr(cfg, "logo")
-        assert hasattr(cfg, "project")
+        for attr_name in ("branches", "config_endpoint", "launcher_endpoint",
+                          "index_endpoint", "launch_flags", "news_rss_feed",
+                          "game_binary", "logo", "project"):
+            assert hasattr(cfg, attr_name), (
+                "config is missing its '%s' attribute" % attr_name)
 
 
 if __name__ == "__main__":
