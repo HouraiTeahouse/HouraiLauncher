@@ -164,7 +164,6 @@ class ConfigTest(TestCase):
         assert hasattr(config, "CONFIG")
         assert hasattr(config, "BASE_DIR")
         assert hasattr(config, "RESOURCE_DIR")
-        assert hasattr(config, "GLOBAL_CONTEXT")
 
         assert hasattr(cfg, "branches")
         assert hasattr(cfg, "config_endpoint")

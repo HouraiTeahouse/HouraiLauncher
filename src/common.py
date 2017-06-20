@@ -7,6 +7,15 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication
 from util import get_platform
 
+try:
+    # common needs to import config, and config needs to import common.
+    # whichever one successfully imports the other will give the other
+    # a reference to itself.
+    import config
+    config.common = sys.modules[__name__]
+except ImportError:
+    config = None
+
 ICON_SIZES = (16, 32, 48, 64, 256)
 
 GLOBAL_CONTEXT = {
@@ -38,12 +47,6 @@ def get_loop():
 
 
 def set_app_icon():
-    # config relies on common, and this function in common relies on config.
-    # gotta break the import loop somewhere, so this seems like a good place.
-    # might be more preferrable to make a dummy config attribute and have the
-    # launcher's __init__.py set up a circular link between both modules.
-    # that might not work well when running tests though...
-    import config
     g = globals()
 
     if g.get('app') is None:

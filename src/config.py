@@ -6,15 +6,23 @@ import gettext
 import requests
 import logging
 from logging.handlers import RotatingFileHandler
-from requests.exceptions import HTTPError, Timeout
-from common import inject_variables, GLOBAL_CONTEXT, sanitize_url
+from requests.exceptions import HTTPError, Timeout, ConnectionError
 from util import namedtuple_from_mapping, get_platform
 from collections import OrderedDict
+
+try:
+    # common needs to import config, and config needs to import common.
+    # whichever one successfully imports the other will give the other
+    # a reference to itself.
+    import common
+    common.config = sys.modules[__name__]
+except ImportError:
+    common = None
 
 __all__ = (
     "TRANSLATION_DIR", "TRANSLATION_DIRNAME", "TRANSLATIONS",
     "CONFIG_DIR", "CONFIG_DIRNAME", "CONFIG_NAME", "CONFIG",
-    "BASE_DIR", "RESOURCE_DIR", "GLOBAL_CONTEXT", "ROOT_LOGGER"
+    "BASE_DIR", "RESOURCE_DIR", "ROOT_LOGGER"
     )
 
 
@@ -76,9 +84,10 @@ def reload_config():
         config_json = json.load(config_file, object_pairs_hook=OrderedDict)
 
         old_url = None
-        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+        common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
+            config_json['project'])
         if 'config_endpoint' in config_json:
-            url = inject_variables(config_json['config_endpoint'])
+            url = common.inject_variables(config_json['config_endpoint'])
             while old_url != url:
                 if _LOGGER_SETUP:
                     logging.info('Loading remote config from %s' % url)
@@ -102,13 +111,19 @@ def reload_config():
                     if _LOGGER_SETUP:
                         logging.error(timeout)
                     break
+                except ConnectionError as connection_error:
+                    if _LOGGER_SETUP:
+                        logging.error(connection_error)
+                    break
                 old_url = url
-                GLOBAL_CONTEXT['project'] = sanitize_url(
+                common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
                     config_json['project'])
                 if 'config_endpoint' in config_json:
-                    url = inject_variables(config_json['config_endpoint'])
+                    url = common.inject_variables(
+                        config_json['config_endpoint'])
         g['CONFIG'] = namedtuple_from_mapping(config_json)
-        GLOBAL_CONTEXT['project'] = sanitize_url(config_json['project'])
+        common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
+            config_json['project'])
 
     return g['CONFIG']
 
