@@ -2,7 +2,6 @@ import common
 import os
 import sys
 from unittest import TestCase, main
-from unittest.case import _UnexpectedSuccess
 from common import get_app, get_loop, set_app_icon, ICON_SIZES, sanitize_url,\
      inject_variables, GLOBAL_CONTEXT
 from PyQt5.QtWidgets import QApplication
@@ -19,16 +18,12 @@ class CommonTest(TestCase):
     def test_get_loop_fails_without_app(self):
         common.app = None
         common.loop = None
-        try:
-            loop = get_loop()
-            raise _UnexpectedSuccess
-        except NameError:
-            pass
+        self.assertRaises(NameError, get_loop)
 
     def test_can_get_app(self):
         common.app = None
         app = get_app()
-        self.assertTrue(app)
+        self.assertIsNotNone(app)
 
         # make sure if it is called again, the loop is the same object
         self.assertIs(get_app(), app)
@@ -36,29 +31,27 @@ class CommonTest(TestCase):
     def test_can_get_loop(self):
         common.loop = None
         loop = get_loop()
-        self.assertTrue(loop)
+        self.assertIsNotNone(loop)
 
         # make sure if it is called again, the loop is the same object
         self.assertIs(get_loop(), loop)
 
     def test_cannot_set_icon_without_app(self):
         common.app = None
-        try:
-            set_app_icon()
-            raise _UnexpectedSuccess
-        except NameError:
-            pass
+        self.assertRaises(NameError, set_app_icon)
 
     def test_app_icon_has_all_sizes(self):
         common.app = QApplication(sys.argv)
         common.loop = QEventLoop(common.app)
         set_app_icon()
 
-        qicon_sizes = common.app_icon.availableSizes()
+        app_icon = common.app.windowIcon()
+
+        qicon_sizes = app_icon.availableSizes()
         self.assertEqual(len(ICON_SIZES), len(qicon_sizes))
 
         for q_size in qicon_sizes:
-            self.assertTrue(q_size.height() == q_size.width())
+            self.assertEqual(q_size.height(), q_size.width())
             self.assertIn(q_size.height(), ICON_SIZES)
 
     def test_sanitize_url(self):
