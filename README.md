@@ -1,11 +1,8 @@
-# Hourai Launcher
-
-[![Windows Build
-status](https://ci.appveyor.com/api/projects/status/jxlwb36kfc8s05ff?svg=true)](https://ci.appveyor.com/project/james7132/hourailauncher)
-[![Travis Build
-Status](https://travis-ci.org/HouraiTeahouse/HouraiLauncher.svg?branch=master)](https://travis-ci.org/HouraiTeahouse/HouraiLauncher)
-[![Coverage
-Status](https://coveralls.io/repos/github/HouraiTeahouse/HouraiLauncher/badge.svg?branch=master)](https://coveralls.io/github/HouraiTeahouse/HouraiLauncher?branch=master)
+# Hourai Launcher 
+[![Windows Build status](https://ci.appveyor.com/api/projects/status/jxlwb36kfc8s05ff?svg=true)](https://ci.appveyor.com/project/james7132/hourailauncher) 
+[![Travis Build Status](https://travis-ci.org/HouraiTeahouse/HouraiLauncher.svg?branch=master)](https://travis-ci.org/HouraiTeahouse/HouraiLauncher) 
+[![Coverage Status](https://coveralls.io/repos/github/HouraiTeahouse/HouraiLauncher/badge.svg?branch=master)](https://coveralls.io/github/HouraiTeahouse/HouraiLauncher?branch=master) 
+[![License](https://img.shields.io/github/license/HouraiTeahouse/HouraiLauncher.svg)](./LICENSE) 
 [![Discord](https://discordapp.com/api/guilds/151219753434742784/widget.png)](https://discord.gg/VuZhs9V)
 
 A cross platform game launcher/patcher.
