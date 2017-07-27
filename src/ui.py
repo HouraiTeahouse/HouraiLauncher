@@ -226,7 +226,6 @@ class MainWindow(QWidget):
                 break
         logging.info('News fetched!')
 
-
     def _get_date(self, entry_date):
         if 'win' in get_platform().lower():
             logging.info(
@@ -239,7 +238,6 @@ class MainWindow(QWidget):
                 logging.warning('Cannot import gettext_windows')
         else:
             return format_date(entry_date)
-
 
     def build_path(self, path, context=None):
         if context is None:
