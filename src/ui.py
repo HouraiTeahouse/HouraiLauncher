@@ -218,13 +218,28 @@ class MainWindow(QWidget):
             label = QLabel()
             label.setOpenExternalLinks(True)
             label.setText('<a href="%s">%s</a>' % (entry.link, entry.title))
-            self.news_view.addRow(QLabel(format_date(entry_date)), label)
+            self.news_view.addRow(QLabel(self._get_date(entry_date)), label)
             logging.info('News Item: %s (%s)' %
                          (format_date(entry_date), entry.title))
             self.news_row_count += 1
             if self.news_row_count >= 10:
                 break
         logging.info('News fetched!')
+
+
+    def _get_date(self, entry_date):
+      if 'win' in get_platform().lower():
+          logging.info(
+              'Setting Windows environment variables for translation...')
+          try:
+              from gettext_windows import get_language_windows
+              lang = get_language_windows()
+              return format_date(entry_date, lang)
+          except:
+              logging.warning('Cannot import gettext_windows')
+      else:
+          return format_date(entry_date)
+
 
     def build_path(self, path, context=None):
         if context is None:
