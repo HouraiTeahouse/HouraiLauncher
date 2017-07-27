@@ -228,17 +228,17 @@ class MainWindow(QWidget):
 
 
     def _get_date(self, entry_date):
-      if 'win' in get_platform().lower():
-          logging.info(
-              'Setting Windows environment variables for translation...')
-          try:
-              from gettext_windows import get_language_windows
-              lang = get_language_windows()
-              return format_date(entry_date, lang)
-          except:
-              logging.warning('Cannot import gettext_windows')
-      else:
-          return format_date(entry_date)
+        if 'win' in get_platform().lower():
+            logging.info(
+                'Setting Windows environment variables for translation...')
+            try:
+                from gettext_windows import get_language_windows
+                lang = get_language_windows()
+                return format_date(entry_date, lang)
+            except:
+                logging.warning('Cannot import gettext_windows')
+        else:
+            return format_date(entry_date)
 
 
     def build_path(self, path, context=None):
