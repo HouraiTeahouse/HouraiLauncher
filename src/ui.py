@@ -259,8 +259,8 @@ class MainWindow(QWidget):
         if '--test' in sys.argv or not hasattr(self.config,
                                                'launcher_endpoint'):
             return
-        launcher_hash = sha256_hash(sys.executable)
-        logging.info('Launcher Hash: %s' % launcher_hash)
+        launcher_hash = sha256_hash(sys.executable).strip()
+        logging.info('Launcher Hash: "%s"' % launcher_hash)
         url = self.build_path(self.config.launcher_endpoint)
         hash_url = url + '.hash'
         logging.info('Fetching remote hash from: %s' % hash_url)
@@ -288,8 +288,8 @@ class MainWindow(QWidget):
                     "Check the log for details."))
             return
 
-        remote_launcher_hash = response.text
-        logging.info('Remote launcher hash: %s' % remote_launcher_hash)
+        remote_launcher_hash = response.text.strip()
+        logging.info('Remote launcher hash: "%s"' % remote_launcher_hash)
         if remote_launcher_hash == launcher_hash:
             return
         logging.info('Fetching new launcher from: %s' % url)
