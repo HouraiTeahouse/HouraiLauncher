@@ -12,6 +12,7 @@
   "launch_flags":{
   },
   "branches" : {
+    "master": "Stable",
     "develop": "Development"
   }
 }
