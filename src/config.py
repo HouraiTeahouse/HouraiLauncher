@@ -26,7 +26,7 @@ __all__ = (
     )
 
 
-CONFIG_DIRNAME = 'Launcher'
+CONFIG_DIRNAME = 'LauncherData'
 CONFIG_NAME = 'config.json'
 TRANSLATION_DIRNAME = 'i18n'
 _TRANSLATIONS_INSTALLED = False
