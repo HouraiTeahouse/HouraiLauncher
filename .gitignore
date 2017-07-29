@@ -91,7 +91,7 @@ ENV/
 *.iml
 
 # Launcher stuff
-Launcher/
+LauncherData/
 launcher/
 launcher_log.*
 
