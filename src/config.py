@@ -80,12 +80,15 @@ def reload_config():
         # Using OrderedDict to preserve JSON ordering of dictionaries
         config_json = json.load(config_file, object_pairs_hook=OrderedDict)
 
+
         old_url = None
         common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
             config_json['project'])
         if 'config_endpoint' in config_json:
             url = common.inject_variables(config_json['config_endpoint'])
             while old_url != url:
+                if '--test' in sys.argv:
+                    break
                 logging.info('Loading remote config from %s' % url)
                 try:
                     response = requests.get(url, timeout=5)
