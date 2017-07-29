@@ -35,7 +35,7 @@ install:
   - cmd: pip install -r requirements.txt
 
   # Test dev version of PyInstaller
-  - cmd: pip install https://github.com/pyinstaller/pyinstaller/archive/develop.zip
+  - cmd: pip install pyinstaller
 
   # Check installed packages again
   - cmd: pip freeze
