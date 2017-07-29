@@ -41,6 +41,10 @@ class Branch(object):
         self.config = cfg
         self.files = {}
         self.remote_index = {}
+        self.download_tracker = None
+
+    def set_download_tracker(self, download_tracker):
+        self.download_tracker = download_tracker
 
     def __str__(self):
         return str((self.name, self.source_branch))
@@ -65,9 +69,7 @@ class Branch(object):
         subprocess.Popen(args)
         sys.exit()
 
-    def _diff_files(self,
-                    context,
-                    download_tracker):
+    def _diff_files(self, context):
         url_format = self.remote_index['url_format']
         for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
@@ -85,22 +87,22 @@ class Branch(object):
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
                 continue
             self.needs_update = True
-            download_tracker.add_download(file_path, url, filesize)
+            self.download_tracker.add_download(file_path, url, filesize)
 
-    def _preclean_branch_directory(self, download_tracker):
+    def _preclean_branch_directory(self):
         directories = set(os.path.dirname(download.file_path)
-                          for download in download_tracker)
+                          for download in self.download_tracker)
         for directory in directories:
             if not os.path.exists(directory):
                 logging.info('Creating new directory: %s' % directory)
                 os.makedirs(directory)
-        for download in download_tracker:
+        for download in self.download_tracker:
             path = download.file_path
             if os.path.isdir(path):
                 logging.info('Delete conflicting directory: %s' % path)
                 shutil.rmtree(path)
 
-    def fetch_remote_index(self, context, download_tracker):
+    def fetch_remote_index(self, context):
         asyncio.set_event_loop(get_loop())
         branch_context = dict(context)
         branch_context["branch"] = self.source_branch
@@ -114,15 +116,15 @@ class Branch(object):
         branch_context['base_url'] = self.remote_index['base_url']
         logging.info(
             'Comparing local installation against remote index...')
-        self._diff_files(branch_context, download_tracker)
+        self._diff_files(branch_context)
 
-    def update_game(self, download_tracker):
+    def update_game(self):
         asyncio.set_event_loop(get_loop())
         with requests.Session() as session:
             logging.info(
-                'Total download size: %s' % download_tracker.total_size)
-            self._preclean_branch_directory(download_tracker)
-            download_tracker.run(session=session)
+                'Total download size: %s' % self.download_tracker.total_size)
+            self._preclean_branch_directory()
+            self.download_tracker.run(session=session)
         files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for fullpath, filename in files:
@@ -183,6 +185,8 @@ class MainWindow(QWidget):
         thread_count = multiprocessing.cpu_count() * THREAD_MULTIPLIER
         with QThreadExecutor(thread_count) as self.executor:
             self.download_tracker.executor = self.executor
+            for branch in self.branches.values():
+                branch.download_tracker.executor = self.executor
             asyncio.ensure_future(self.fetch_news())
             while True:
                 if self.client_state in state_mapping:
@@ -353,8 +357,7 @@ class MainWindow(QWidget):
         logging.info('Checking for remote game updates...')
         downloads = [get_loop().run_in_executor(
             self.executor, branch.fetch_remote_index,
-            self.context, self.download_tracker)
-                     for branch in self.branches.values()]
+            self.context) for branch in self.branches.values()]
         try:
             await asyncio.gather(*downloads)
             error_occurred = False
@@ -382,8 +385,7 @@ class MainWindow(QWidget):
         self.launch_game_btn.hide()
         self.progress_bar.show()
         self.branch_box.setEnabled(False)
-        await get_loop().run_in_executor(self.executor, self.branch.update_game,
-                self.download_tracker)
+        await get_loop().run_in_executor(self.executor, self.branch.update_game)
         self.set_idle_state()
 
     def set_idle_state(self):
@@ -410,6 +412,9 @@ class MainWindow(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.hide()
         self.download_tracker = DownloadTracker(self.progress_bar)
+
+        for branch in self.branches.values():
+            branch.set_download_tracker(DownloadTracker(self.progress_bar))
 
         self.launch_game_btn.clicked.connect(self.button_clicked)
 
