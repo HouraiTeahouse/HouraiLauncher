@@ -37,8 +37,13 @@ class Branch(object):
         self.directory = os.path.join(config.BASE_DIR, name)
         self.is_indexed = False
         self.last_fetched = None
+        self.needs_update = False
         self.config = cfg
         self.files = {}
+        self.remote_index = {}
+
+    def __str__(self):
+        return str((self.name, self.source_branch))
 
     def index_directory(self):
         if not os.path.exists(self.directory):
@@ -62,11 +67,9 @@ class Branch(object):
 
     def _diff_files(self,
                     context,
-                    download_tracker,
-                    remote_index,
-                    session=None):
-        url_format = remote_index['url_format']
-        for filename, filedata in remote_index['files'].items():
+                    download_tracker):
+        url_format = self.remote_index['url_format']
+        for filename, filedata in self.remote_index['files'].items():
             filehash = filedata['sha256']
             filesize = filedata['size']
             context.update(filename=filename, filehash=filehash)
@@ -81,7 +84,7 @@ class Branch(object):
             else:
                 logging.info('Matched File: %s (%s)' % (filehash, filename))
                 continue
-
+            self.needs_update = True
             download_tracker.add_download(file_path, url, filesize)
 
     def _preclean_branch_directory(self, download_tracker):
@@ -106,23 +109,26 @@ class Branch(object):
         response = requests.get(url)
 
         # TODO(james7132): Do proper error checking
-        remote_index = response.json()
+        self.remote_index = response.json()
         logging.info('Fetched remote index from %s...' % url)
-        branch_context['base_url'] = remote_index['base_url']
+        branch_context['base_url'] = self.remote_index['base_url']
+        logging.info(
+            'Comparing local installation against remote index...')
+        self._diff_files(branch_context, download_tracker)
+
+    def update_game(self, download_tracker):
+        asyncio.set_event_loop(get_loop())
         with requests.Session() as session:
-            logging.info(
-                'Comparing local installation against remote index...')
-            self._diff_files(branch_context, download_tracker, remote_index,
-                             session)
             logging.info(
                 'Total download size: %s' % download_tracker.total_size)
             self._preclean_branch_directory(download_tracker)
             download_tracker.run(session=session)
-        files = filter(lambda f: f[1] not in remote_index['files'],
+        files = filter(lambda f: f[1] not in self.remote_index['files'],
                        list_files(self.directory))
         for fullpath, filename in files:
             logging.info('Removing extra file: %s' % filename)
             os.remove(fullpath)
+        self.needs_update = False
 
 
 class ClientState(Enum):
@@ -136,10 +142,12 @@ class ClientState(Enum):
     GAME_STATUS_CHECK = 3
     # Checking the status of the local
     GAME_UPDATE_CHECK = 4
+    # Pending game update
+    PENDING_GAME_UPDATE = 5
     # Game is downloading needed new files for update
-    GAME_UPDATE = 5
+    GAME_UPDATE = 6
     # Game update errored out, need to restart patching process
-    GAME_UPDATE_ERROR = 6
+    GAME_UPDATE_ERROR = 7
 
 
 class MainWindow(QWidget):
@@ -153,12 +161,12 @@ class MainWindow(QWidget):
             name: Branch(name, branch, cfg)
             for branch, name in branches.items()
         }
-        self.branch_lookup = {v: k for k, v in self.config.branches.items()}
-        self.branch = next(iter(self.config.branches.values()))
+        # TODO(james7132): make branch selection persist
+        self.branch = next(iter(self.branches.values()))
         self.context = dict(GLOBAL_CONTEXT)
         self.context.update({
             'project': sanitize_url(self.config.project),
-            'branch': 'develop',
+            'branch': self.branch.source_branch,
         })
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.init_ui()
@@ -168,6 +176,8 @@ class MainWindow(QWidget):
             ClientState.LAUNCHER_UPDATE_CHECK: self.launcher_update_check,
             ClientState.GAME_STATUS_CHECK: self.game_status_check,
             ClientState.GAME_UPDATE_CHECK: self.game_update_check,
+            ClientState.PENDING_GAME_UPDATE: self.pending_game_update,
+            ClientState.GAME_UPDATE: self.game_update,
             ClientState.READY: self.ready
         }
         thread_count = multiprocessing.cpu_count() * THREAD_MULTIPLIER
@@ -244,7 +254,16 @@ class MainWindow(QWidget):
             context = self.context
         return inject_variables(path, context)
 
+    async def pending_game_update(self):
+        self.branch_box.setEnabled(True)
+        self.launch_game_btn.setText(_('Update Game'))
+        self.launch_game_btn.setEnabled(True)
+        self.launch_game_btn.show()
+        self.progress_bar.hide()
+        await asyncio.sleep(0.1)
+
     async def ready(self):
+        self.branch_box.setEnabled(True)
         self.launch_game_btn.setText(_('Launch Game'))
         self.launch_game_btn.setEnabled(True)
         self.launch_game_btn.show()
@@ -331,8 +350,6 @@ class MainWindow(QWidget):
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
-        self.launch_game_btn.hide()
-        self.progress_bar.show()
         logging.info('Checking for remote game updates...')
         downloads = [get_loop().run_in_executor(
             self.executor, branch.fetch_remote_index,
@@ -359,7 +376,21 @@ class MainWindow(QWidget):
                     "Check the log for details."))
 
         logging.info('Remote game update check completed.')
-        self.client_state = ClientState.READY
+        self.set_idle_state()
+
+    async def game_update(self):
+        self.launch_game_btn.hide()
+        self.progress_bar.show()
+        self.branch_box.setEnabled(False)
+        await get_loop().run_in_executor(self.executor, self.branch.update_game,
+                self.download_tracker)
+        self.set_idle_state()
+
+    def set_idle_state(self):
+        if self.branch.needs_update:
+            self.client_state = ClientState.PENDING_GAME_UPDATE
+        else:
+            self.client_state = ClientState.READY
 
     def init_ui(self):
         self.setFixedSize(WIDTH, HEIGHT)
@@ -380,7 +411,7 @@ class MainWindow(QWidget):
         self.progress_bar.hide()
         self.download_tracker = DownloadTracker(self.progress_bar)
 
-        self.launch_game_btn.clicked.connect(self.launch_game)
+        self.launch_game_btn.clicked.connect(self.button_clicked)
 
         logo = QPixmap(os.path.join(config.RESOURCE_DIR, self.config.logo))
         logo = logo.scaledToWidth(WIDTH)
@@ -400,8 +431,15 @@ class MainWindow(QWidget):
         self.setLayout(default_layout)
 
     def on_branch_change(self, selection):
-        self.branch = self.branch_lookup[selection]
+        self.branch = self.branches[selection]
         logging.info("Changed to branch: %s" % self.branch)
+        self.set_idle_state()
+
+    def button_clicked(self):
+        if self.client_state == ClientState.READY:
+            self.launch_game()
+        else:
+            self.client_state = ClientState.GAME_UPDATE
 
     def launch_game(self):
         logging.info('Launching game...')
@@ -412,4 +450,4 @@ class MainWindow(QWidget):
         args = ()
         if system in self.config.launch_flags:
             args = self.config.launch_flags[system]
-        self.branches[self.branch].launch_game(binary, args)
+        self.branch.launch_game(binary, args)
