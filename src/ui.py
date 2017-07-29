@@ -168,7 +168,6 @@ class MainWindow(QWidget):
         }
         self.persistent_data = {}
         self.load_persistent_data()
-        # TODO(james7132): make branch selection persist
         self.branch = self.branches[self.persistent_data['branch']]
         self.context = dict(GLOBAL_CONTEXT)
         self.context.update({
@@ -179,7 +178,10 @@ class MainWindow(QWidget):
         self.init_ui()
 
     def load_persistent_data(self):
-        data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        if CONFIG_DIR:
+            data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        else:
+            data_path = DATA_FILE
         if os.path.exists(data_path):
             with open(data_path, 'r') as data_file:
                 self.persistent_data = json.load(data_file)
@@ -191,7 +193,10 @@ class MainWindow(QWidget):
         self.save_persistent_data()
 
     def save_persistent_data(self):
-        data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        if CONFIG_DIR:
+            data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        else:
+            data_path = DATA_FILE
         with open(data_path, 'w') as data_file:
             json.dump(self.persistent_data, data_file)
 
