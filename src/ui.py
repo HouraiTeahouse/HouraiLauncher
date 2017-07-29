@@ -450,8 +450,7 @@ class MainWindow(QWidget):
         self.progress_bar.hide()
         self.download_tracker = DownloadTracker(self.progress_bar)
 
-        for branch in self.config.branches.values():
-            branchObj = self.branches[branch]
+        for branch in self.branches.values():
             branch.set_download_tracker(DownloadTracker(self.progress_bar))
 
         self.launch_game_btn.clicked.connect(self.button_clicked)
