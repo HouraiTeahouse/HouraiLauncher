@@ -9,10 +9,12 @@ import time
 import multiprocessing
 import requests
 import feedparser
+import json
 from babel.dates import format_date
 from datetime import datetime
 from time import mktime
 from enum import Enum
+from config import CONFIG_DIR
 from common import inject_variables, get_loop, sanitize_url, GLOBAL_CONTEXT
 from util import get_platform, sha256_hash, list_files
 from download import DownloadTracker
@@ -27,6 +29,7 @@ WIDTH = 640
 HEIGHT = 480
 
 THREAD_MULTIPLIER = 5
+DATA_FILE = 'data.json'
 
 
 class Branch(object):
@@ -163,8 +166,10 @@ class MainWindow(QWidget):
             name: Branch(name, branch, cfg)
             for branch, name in branches.items()
         }
+        self.persistent_data = {}
+        self.load_persistent_data()
         # TODO(james7132): make branch selection persist
-        self.branch = next(iter(self.branches.values()))
+        self.branch = self.branches[self.persistent_data['branch']]
         self.context = dict(GLOBAL_CONTEXT)
         self.context.update({
             'project': sanitize_url(self.config.project),
@@ -172,6 +177,23 @@ class MainWindow(QWidget):
         })
         self.client_state = ClientState.LAUNCHER_UPDATE_CHECK
         self.init_ui()
+
+    def load_persistent_data(self):
+        data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        if os.path.exists(data_path):
+            with open(data_path, 'r') as data_file:
+                self.persistent_data = json.load(data_file)
+            return
+        logging.debug('CLEAN LOAD')
+        self.persistent_data = {
+            'branch': next(iter(self.config.branches.values()))
+        }
+        self.save_persistent_data()
+
+    def save_persistent_data(self):
+        data_path = os.path.join(CONFIG_DIR, DATA_FILE)
+        with open(data_path, 'w') as data_file:
+            json.dump(self.persistent_data, data_file)
 
     async def main_loop(self):
         state_mapping = {
@@ -275,6 +297,7 @@ class MainWindow(QWidget):
         await asyncio.sleep(0.1)
 
     async def launcher_update_check(self):
+        self.branch_box.setEnabled(False)
         self.client_state = ClientState.GAME_STATUS_CHECK
         if not hasattr(sys, 'frozen'):
             logging.info('Not build executable')
@@ -341,6 +364,7 @@ class MainWindow(QWidget):
         sys.exit(0)
 
     async def game_status_check(self):
+        self.branch_box.setEnabled(False)
         logging.info('Checking local installation...')
         self.launch_game_btn.setText(_('Checking local installation...'))
         self.launch_game_btn.setEnabled(False)
@@ -354,6 +378,7 @@ class MainWindow(QWidget):
         self.client_state = ClientState.GAME_UPDATE_CHECK
 
     async def game_update_check(self):
+        self.branch_box.setEnabled(False)
         logging.info('Checking for remote game updates...')
         downloads = [get_loop().run_in_executor(
             self.executor, branch.fetch_remote_index,
@@ -402,8 +427,14 @@ class MainWindow(QWidget):
         self.launch_game_btn.setEnabled(False)
 
         self.branch_box = QComboBox()
-        self.branch_box.activated[str].connect(self.on_branch_change)
         self.branch_box.addItems(self.config.branches.values())
+
+        for i, branch in enumerate(self.config.branches.values()):
+            if branch == self.branch.name:
+                self.branch_box.setCurrentIndex(i)
+
+        self.branch_box.activated[str].connect(self.on_branch_change)
+
         if len(self.config.branches) <= 1:
             self.branch_box.hide()
 
@@ -437,6 +468,8 @@ class MainWindow(QWidget):
 
     def on_branch_change(self, selection):
         self.branch = self.branches[selection]
+        self.persistent_data['branch'] = self.branch.name
+        self.save_persistent_data()
         logging.info("Changed to branch: %s" % self.branch)
         self.set_idle_state()
 
