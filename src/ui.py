@@ -415,7 +415,8 @@ class MainWindow(QWidget):
         self.launch_game_btn.hide()
         self.progress_bar.show()
         self.branch_box.setEnabled(False)
-        await get_loop().run_in_executor(self.executor, self.branch.update_game)
+        await get_loop().run_in_executor(self.executor,
+                                         self.branch.update_game)
         self.set_idle_state()
 
     def set_idle_state(self):
