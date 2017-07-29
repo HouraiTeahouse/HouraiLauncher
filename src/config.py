@@ -80,7 +80,6 @@ def reload_config():
         # Using OrderedDict to preserve JSON ordering of dictionaries
         config_json = json.load(config_file, object_pairs_hook=OrderedDict)
 
-
         old_url = None
         common.GLOBAL_CONTEXT['project'] = common.sanitize_url(
             config_json['project'])
