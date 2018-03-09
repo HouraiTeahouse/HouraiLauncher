@@ -19,3 +19,4 @@ git clone https://github.com/andreyvit/yoursway-create-dmg.git ./create-dmg
   --volname "Fantasy Crescendo Installer" \
   dist/fc_installer.dmg \
   $APP_DIR/
+

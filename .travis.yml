@@ -25,6 +25,7 @@ matrix:
         - which pip
         - pip install six wheel nose
       before_deploy:
+        - chmod +x ./pkg/macOS/build_app.sh
         - ./pkg/macOS/build_app.sh
 env:
   global:
