@@ -24,6 +24,8 @@ matrix:
         - source venv/bin/activate
         - which pip
         - pip install six wheel nose
+      before_deploy:
+        - ./pkg/macOS/build_app.sh
 env:
   global:
     - PYTHONPATH="$TRAVIS_BUILD_DIR/src;$TRAVIS_BUILD_DIR/test"
