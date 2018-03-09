@@ -14,9 +14,9 @@ APPEXE="$APP_DIR/Contents/MacOS/$APP"
 cp $EXE $APPEXE
 
 # Build *.dmg file
+DMG_PATH="./dist/fc_installer.dmg"
+test -f $DMG_PATH && rm $DMG_PATH
 git clone https://github.com/andreyvit/yoursway-create-dmg.git ./create-dmg
 ./create-dmg/create-dmg \
   --volname "Fantasy Crescendo Installer" \
-  dist/fc_installer.dmg \
-  $APP_DIR/
-
+  $DMG_PATH $APP_DIR/
