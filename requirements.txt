@@ -9,4 +9,4 @@ pytz==2017.2
 Quamash==0.5.5
 requests==2.20.0
 sip==4.19.2
-urllib3==1.21.1
+urllib3==1.26.5
